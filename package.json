@@ -1,0 +1,12 @@
+{
+  "name": "force",
+  "private": true,
+  "scripts": {
+    "dev:customer": "npm --prefix customer run dev",
+    "dev:admin": "npm --prefix admin run dev",
+    "dev:developer": "npm --prefix developer run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "seed:dev": "npm --prefix backend run seed:dev"
+  }
+}
+

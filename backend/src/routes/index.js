@@ -1,0 +1,16 @@
+import { Router } from "express";
+import authRoutes from "./auth.routes.js";
+import { requireAuth } from "../middleware/auth.js";
+import { attachTenant } from "../middleware/tenant.js";
+
+const router = Router();
+
+router.use("/auth", authRoutes);
+
+// Temporary protected route to verify auth + tenant middleware.
+// Move this into an organizations module when that feature grows.
+router.get("/organizations/me", requireAuth, attachTenant, (req, res) => {
+  res.json({ organizationId: req.organizationId, role: req.user.role });
+});
+
+export default router;
