@@ -142,6 +142,11 @@ export const ticketsApi = {
       method: "POST",
       body: JSON.stringify({ body }),
     }),
+  requestReopen: (id, reason) =>
+    apiRequest(`/tickets/${id}/reopen-requests`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
 };
 export const dashboardApi = {
   summary: () => apiRequest("/dashboard/summary"),

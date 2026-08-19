@@ -28,7 +28,7 @@ export async function getTicketHandler(req, res, next) {
 
 export async function createTicketHandler(req, res, next) {
   try {
-    const { projectId, title, description, priority } = req.body;
+    const { projectId, title, description, priority, dueDate } = req.body;
 
     if (!projectId || !title || !description) {
       return res.status(400).json({ error: "Missing project, title, or description" });
@@ -41,6 +41,7 @@ export async function createTicketHandler(req, res, next) {
       title,
       description,
       priority,
+      dueDate,
     });
 
     res.status(201).json({ ticket });
@@ -84,6 +85,68 @@ export async function addTicketCommentHandler(req, res, next) {
     });
 
     res.status(201).json({ ticket });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function addInternalNoteHandler(req, res, next) {
+  try {
+    const { body } = req.body;
+    if (!body || !body.trim()) {
+      return res.status(400).json({ error: "Missing internal note" });
+    }
+
+    const ticket = await ticketService.addInternalNote({
+      organizationId: req.organizationId,
+      user: req.user,
+      ticketId: req.params.id,
+      body,
+    });
+
+    res.status(201).json({ ticket });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function requestReopenHandler(req, res, next) {
+  try {
+    const { reason } = req.body;
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ error: "Missing reopen reason" });
+    }
+
+    const ticket = await ticketService.requestReopen({
+      organizationId: req.organizationId,
+      user: req.user,
+      ticketId: req.params.id,
+      reason,
+    });
+
+    res.status(201).json({ ticket });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reviewReopenRequestHandler(req, res, next) {
+  try {
+    const { decision, adminNote } = req.body;
+    if (!["approved", "rejected"].includes(decision)) {
+      return res.status(400).json({ error: "Decision must be approved or rejected" });
+    }
+
+    const ticket = await ticketService.reviewReopenRequest({
+      organizationId: req.organizationId,
+      user: req.user,
+      ticketId: req.params.id,
+      requestId: req.params.requestId,
+      decision,
+      adminNote,
+    });
+
+    res.json({ ticket });
   } catch (err) {
     next(err);
   }

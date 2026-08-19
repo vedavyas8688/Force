@@ -71,7 +71,11 @@ export async function logoutHandler(req, res, next) {
   }
 }
 
-export async function meHandler(req, res) {
-  // req.user is set by the auth middleware after verifying the JWT
-  res.status(200).json({ user: req.user });
+export async function meHandler(req, res, next) {
+  try {
+    const user = await authService.getCurrentUser({ userId: req.user.sub });
+    res.status(200).json({ user });
+  } catch (err) {
+    next(err);
+  }
 }

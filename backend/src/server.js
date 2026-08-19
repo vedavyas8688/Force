@@ -13,7 +13,13 @@ const allowedOrigins = (process.env.CLIENT_ORIGINS || "")
   .filter(Boolean);
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    if (req.originalUrl === "/api/webhooks/github") {
+      req.rawBody = buf;
+    }
+  },
+}));
 
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 

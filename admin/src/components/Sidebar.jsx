@@ -1,53 +1,92 @@
+import {
+  BriefcaseBusiness,
+  BrainCircuit,
+  FolderKanban,
+  GitBranch,
+  LayoutDashboard,
+  LifeBuoy,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+  TicketCheck,
+  Users,
+} from "lucide-react";
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", icon: "#" },
-  { to: "/tickets", label: "Tickets", icon: "T" },
-  { to: "/ai-analysis", label: "AI Analysis", icon: "A" },
-  { to: "/assignments", label: "Assignments", icon: "→" },
-  { to: "/projects", label: "Projects", icon: "P" },
-  { to: "/repositories", label: "Git Settings", icon: "G" },
-  { to: "/users", label: "Users", icon: "U" },
-  { to: "/settings", label: "Settings", icon: "S" },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/tickets", label: "Tickets", icon: TicketCheck },
+  { to: "/users", label: "Users", icon: Users },
+  { to: "/assignments", label: "Assignments", icon: BriefcaseBusiness },
+  { to: "/projects", label: "Projects", icon: FolderKanban },
+  { to: "/git-settings", label: "Git Settings", icon: GitBranch },
+  { to: "/ai-summary", label: "AI Summary", icon: BrainCircuit },
 ];
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside className="sidebar">
+    <aside className={collapsed ? "sidebar collapsed" : "sidebar"}>
       <div className="sidebar-brand">
-        <span className="sidebar-brand-mark">:3002</span>
+        <span className="brand-glyph"><LifeBuoy size={20} /></span>
         <span className="sidebar-brand-name">Admin Portal</span>
+        <button
+          className="sidebar-collapse-icon"
+          type="button"
+          onClick={() => setCollapsed((value) => !value)}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+        </button>
       </div>
 
       <nav className="sidebar-nav">
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === "/"}
-            className={({ isActive }) =>
-              "sidebar-link" + (isActive ? " active" : "")
-            }
-          >
-            <span className="sidebar-link-icon">{item.icon}</span>
-            {item.label}
-          </NavLink>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.to}>
+              <NavLink
+                to={item.to}
+                end={item.to === "/"}
+                className={({ isActive }) =>
+                  "sidebar-link" + (isActive ? " active" : "")
+                }
+              >
+                <Icon size={17} />
+                <span className="sidebar-label">{item.label}</span>
+              </NavLink>
+            </div>
+          );
+        })}
       </nav>
 
       <div className="sidebar-footer">
-        <div className="sidebar-org">
-          <strong>{user?.name || "—"}</strong>
-          <span className="sidebar-role-chip">{user?.role || "admin"}</span>
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            "sidebar-link sidebar-footer-link" + (isActive ? " active" : "")
+          }
+        >
+          <Settings size={17} />
+          <span className="sidebar-label">Settings</span>
+        </NavLink>
+        <div className="sidebar-user-card">
+          <span className="avatar-chip">{user?.name?.[0]?.toUpperCase() || "A"}</span>
+          <div className="sidebar-user-meta">
+            <strong>{user?.name || "Admin User"}</strong>
+            <span>Super Admin</span>
+          </div>
         </div>
         <button className="sidebar-logout" onClick={logout}>
-          Log out
+          <LogOut size={16} />
+          <span className="sidebar-label">Log out</span>
         </button>
       </div>
     </aside>
   );
 }
-

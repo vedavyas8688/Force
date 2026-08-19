@@ -1,0 +1,28 @@
+:root {
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f3f6fb;
+  --color-border: #e3e8f2;
+  --color-ink: #101828;
+  --color-muted: #667085;
+  --color-accent: #5b3ff3;
+  --color-accent-soft: #f0edff;
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --radius-app: 12px;
+
+  --sidebar-bg: var(--color-surface);
+  --sidebar-bg-hover: var(--color-accent-soft);
+  --sidebar-text: #536179;
+  --sidebar-text-active: var(--color-accent);
+  --content-bg: var(--color-bg);
+  --surface: var(--color-surface);
+  --border: var(--color-border);
+  --ink: var(--color-ink);
+  --ink-muted: var(--color-muted);
+  --accent: var(--color-accent);
+  --accent-ink: #ffffff;
+  --danger: var(--color-danger);
+  --radius: var(--radius-app);
+}

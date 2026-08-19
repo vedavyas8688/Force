@@ -142,6 +142,11 @@ export const ticketsApi = {
       method: "POST",
       body: JSON.stringify({ body }),
     }),
+  addInternalNote: (id, body) =>
+    apiRequest(`/tickets/${id}/internal-notes`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
 };
 export const dashboardApi = {
   summary: () => apiRequest("/dashboard/summary"),

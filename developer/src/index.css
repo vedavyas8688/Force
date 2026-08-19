@@ -575,6 +575,61 @@ button, input {
   padding: 8px 12px;
 }
 
+.ticket-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ticket-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ticket-tab.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--content-bg);
+}
+
+.ticket-tab span {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.internal-note-list .comment-item {
+  border-left: 3px solid var(--accent);
+}
+
+.activity-list {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.activity-list div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.activity-list strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 @media (max-width: 700px) {
   .ticket-card-header,
   .comment-form {

@@ -17,7 +17,7 @@ export default function Dashboard() {
   const stats = [
     { label: "My tickets", value: summary?.stats?.totalTickets ?? 0 },
     { label: "Open", value: summary?.stats?.openTickets ?? 0 },
-    { label: "Resolved", value: summary?.stats?.resolvedTickets ?? 0 },
+    { label: "Completed/Closed", value: summary?.stats?.resolvedTickets ?? 0 },
     { label: "Projects", value: summary?.stats?.activeProjects ?? 0 },
   ];
 
@@ -50,13 +50,15 @@ export default function Dashboard() {
                 <div className="ticket-card-header">
                   <div>
                     <h3>{ticket.title}</h3>
-                    <p>{ticket.projectId?.name || "No project"}</p>
+                    <p>{ticket.description || ticket.projectId?.name || "No project"}</p>
                   </div>
                   <span className="status-pill">{ticket.status}</span>
                 </div>
                 <div className="ticket-meta">
+                  <span>{ticket.projectId?.name || "No project"}</span>
                   <span>{ticket.priority}</span>
                   <span>{ticket.assignedTo?.email || "Unassigned"}</span>
+                  <span>{ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleString() : ""}</span>
                 </div>
               </article>
             ))}

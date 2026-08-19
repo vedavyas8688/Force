@@ -2,7 +2,8 @@ import { Project } from "../../models/project.model.js";
 import { Ticket } from "../../models/ticket.model.js";
 import { User } from "../../models/user.model.js";
 
-const activeTicketStatuses = ["open", "triaged", "assigned", "in_progress"];
+const activeTicketStatuses = ["open", "triaged", "assigned", "in_progress", "pending_customer"];
+const completedTicketStatuses = ["completed", "resolved"];
 
 export async function getDashboardSummary({ organizationId, user }) {
   if (user.role === "admin") {
@@ -71,7 +72,7 @@ async function getCustomerSummary({ organizationId, customerId }) {
     Ticket.countDocuments({
       organizationId,
       customerId,
-      status: { $in: ["resolved", "closed"] },
+      status: { $in: [...completedTicketStatuses, "closed"] },
     }),
     Project.countDocuments({ organizationId, status: "active" }),
   ]);
@@ -101,7 +102,7 @@ async function getDeveloperSummary({ organizationId, developerId }) {
     await Promise.all([
       Ticket.countDocuments({ organizationId, assignedTo: developerId }),
       Ticket.countDocuments({ organizationId, assignedTo: developerId, status: "in_progress" }),
-      Ticket.countDocuments({ organizationId, assignedTo: developerId, status: "resolved" }),
+      Ticket.countDocuments({ organizationId, assignedTo: developerId, status: { $in: completedTicketStatuses } }),
       Ticket.countDocuments({ organizationId, assignedTo: developerId, status: "closed" }),
     ]);
 

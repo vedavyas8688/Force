@@ -42,3 +42,16 @@ export async function updateProjectHandler(req, res, next) {
     next(err);
   }
 }
+
+export async function deleteProjectHandler(req, res, next) {
+  try {
+    const deleted = await projectService.deleteProject({
+      organizationId: req.organizationId,
+      projectId: req.params.id,
+    });
+
+    res.json({ deleted });
+  } catch (err) {
+    next(err);
+  }
+}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { projectsApi, ticketsApi } from "../api/client";
 
-const initialForm = { projectId: "", title: "", description: "", priority: "medium" };
+const initialForm = { projectId: "", title: "", description: "", priority: "medium", dueDate: "" };
 
 export default function NewTicket() {
   const navigate = useNavigate();
@@ -72,6 +72,10 @@ export default function NewTicket() {
             <option value="high">High</option>
             <option value="urgent">Urgent</option>
           </select>
+        </div>
+        <div className="field">
+          <label htmlFor="dueDate">SLA / due date</label>
+          <input id="dueDate" type="date" value={form.dueDate} onChange={update("dueDate")} />
         </div>
         <button className="btn-primary form-button" type="submit" disabled={busy || projects.length === 0}>
           {busy ? "Submitting..." : "Submit ticket"}

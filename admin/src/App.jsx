@@ -6,12 +6,12 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Tickets from "./pages/Tickets";
-import AiAnalysis from "./pages/AiAnalysis";
 import Assignments from "./pages/Assignments";
 import Projects from "./pages/Projects";
-import Repositories from "./pages/Repositories";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
+import GitSettings from "./pages/GitSettings";
+import AiSummary from "./pages/AiSummary";
 
 export default function App() {
   return (
@@ -30,12 +30,12 @@ export default function App() {
           >
             <Route path="/" element={<Dashboard />} />
             <Route path="/tickets" element={<Tickets />} />
-            <Route path="/ai-analysis" element={<AiAnalysis />} />
             <Route path="/assignments" element={<Assignments />} />
             <Route path="/projects" element={<Projects />} />
-            <Route path="/repositories" element={<Repositories />} />
             <Route path="/users" element={<Users />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/git-settings" element={<GitSettings />} />
+            <Route path="/ai-summary" element={<AiSummary />} />
           </Route>
         </Routes>
       </AuthProvider>

@@ -3,15 +3,17 @@ import { ticketsApi } from "../api/client";
 
 const tabs = [
   { key: "open", label: "Open", statuses: ["open", "triaged"] },
-  { key: "assigned", label: "Assigned", statuses: ["assigned", "in_progress"] },
-  { key: "completed", label: "Completed", statuses: ["resolved"] },
+  { key: "assigned", label: "Assigned", statuses: ["assigned"] },
+  { key: "in_progress", label: "In Progress", statuses: ["in_progress"] },
+  { key: "pending_customer", label: "Pending Customer", statuses: ["pending_customer"] },
+  { key: "completed", label: "Completed", statuses: ["completed", "resolved"] },
   { key: "closed", label: "Closed", statuses: ["closed"] },
-  { key: "all", label: "All", statuses: null },
 ];
 
 const statusActions = [
   { status: "in_progress", label: "Start work" },
-  { status: "resolved", label: "Mark completed" },
+  { status: "pending_customer", label: "Need customer" },
+  { status: "completed", label: "Mark completed" },
   { status: "closed", label: "Close ticket" },
 ];
 
@@ -19,6 +21,7 @@ export default function Assigned() {
   const [tickets, setTickets] = useState([]);
   const [activeTab, setActiveTab] = useState("assigned");
   const [commentByTicket, setCommentByTicket] = useState({});
+  const [noteByTicket, setNoteByTicket] = useState({});
   const [error, setError] = useState("");
   const [busyTicketId, setBusyTicketId] = useState("");
 
@@ -55,8 +58,10 @@ export default function Assigned() {
       setTickets((current) =>
         current.map((ticket) => (ticket._id === ticketId ? data.ticket : ticket))
       );
-      if (status === "resolved") setActiveTab("completed");
+      if (status === "completed") setActiveTab("completed");
       if (status === "closed") setActiveTab("closed");
+      if (status === "pending_customer") setActiveTab("pending_customer");
+      if (status === "in_progress") setActiveTab("in_progress");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -76,6 +81,25 @@ export default function Assigned() {
         current.map((ticket) => (ticket._id === ticketId ? data.ticket : ticket))
       );
       setCommentByTicket((current) => ({ ...current, [ticketId]: "" }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyTicketId("");
+    }
+  }
+
+  async function addInternalNote(ticketId) {
+    const body = (noteByTicket[ticketId] || "").trim();
+    if (!body) return;
+
+    setBusyTicketId(ticketId);
+    setError("");
+    try {
+      const data = await ticketsApi.addInternalNote(ticketId, body);
+      setTickets((current) =>
+        current.map((ticket) => (ticket._id === ticketId ? data.ticket : ticket))
+      );
+      setNoteByTicket((current) => ({ ...current, [ticketId]: "" }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -125,6 +149,12 @@ export default function Assigned() {
                     <span>Project: {ticket.projectId?.name || "-"}</span>
                     <span>Customer: {ticket.customerId?.email || "-"}</span>
                     <span>Priority: {ticket.priority}</span>
+                    <span>Team: {ticket.assignedTeam || "-"}</span>
+                    <span>Due: {ticket.dueDate ? new Date(ticket.dueDate).toLocaleDateString() : "-"}</span>
+                    <span>Created: {ticket.createdAt ? new Date(ticket.createdAt).toLocaleString() : "-"}</span>
+                    <span>Updated: {ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleString() : "-"}</span>
+                    {ticket.completedAt && <span>Completed: {new Date(ticket.completedAt).toLocaleString()}</span>}
+                    {ticket.closedAt && <span>Closed: {new Date(ticket.closedAt).toLocaleString()}</span>}
                   </div>
                   {!isClosed && (
                     <div className="status-action-row">
@@ -133,11 +163,44 @@ export default function Assigned() {
                           className="btn-secondary compact-action"
                           type="button"
                           key={action.status}
-                          disabled={busyTicketId === ticket._id || ticket.status === action.status}
+                          disabled={
+                            busyTicketId === ticket._id ||
+                            ticket.status === action.status ||
+                            (action.status === "closed" && !["completed", "resolved"].includes(ticket.status))
+                          }
                           onClick={() => updateStatus(ticket._id, action.status)}
                         >
                           {action.label}
                         </button>
+                      ))}
+                    </div>
+                  )}
+                  {!isClosed && (
+                    <div className="comment-form">
+                      <input
+                        value={noteByTicket[ticket._id] || ""}
+                        onChange={(e) =>
+                          setNoteByTicket((current) => ({ ...current, [ticket._id]: e.target.value }))
+                        }
+                        placeholder="Add internal note"
+                      />
+                      <button
+                        className="btn-secondary inline-button"
+                        type="button"
+                        disabled={busyTicketId === ticket._id}
+                        onClick={() => addInternalNote(ticket._id)}
+                      >
+                        Internal note
+                      </button>
+                    </div>
+                  )}
+                  {(ticket.internalNotes || []).length > 0 && (
+                    <div className="comment-list internal-note-list">
+                      {ticket.internalNotes.map((note) => (
+                        <div className="comment-item" key={note._id || note.createdAt}>
+                          <strong>{note.authorId?.name || note.authorId?.email || "Team note"}</strong>
+                          <span>{note.body}</span>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -170,6 +233,17 @@ export default function Assigned() {
                       >
                         Comment
                       </button>
+                    </div>
+                  )}
+                  {(ticket.activity || []).length > 0 && (
+                    <div className="activity-list">
+                      {ticket.activity.slice().reverse().map((item) => (
+                        <div key={item._id || item.createdAt}>
+                          <strong>{item.action.replaceAll("_", " ")}</strong>
+                          <span>{item.actorId?.email || item.actorId?.name || "System"}</span>
+                          <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </article>

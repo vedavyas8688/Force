@@ -161,6 +161,17 @@ export async function logout({ userId }) {
   await User.findByIdAndUpdate(userId, { $unset: { refreshTokenHash: 1 } });
 }
 
+export async function getCurrentUser({ userId }) {
+  const user = await User.findById(userId).lean();
+  if (!user || user.status !== "active") {
+    const err = new Error("User not found");
+    err.status = 404;
+    throw err;
+  }
+
+  return serializeUser(user);
+}
+
 async function issueTokens(user) {
   const accessToken = signAccessToken(user);
   const refreshToken = signRefreshToken(user);
@@ -172,13 +183,18 @@ async function issueTokens(user) {
   return {
     accessToken,
     refreshToken,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      organizationId: user.organizationId,
-    },
+    user: serializeUser(user),
+  };
+}
+
+function serializeUser(user) {
+  return {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    organizationId: user.organizationId,
   };
 }
 

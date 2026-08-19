@@ -117,6 +117,12 @@ export const projectsApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  update: (id, payload) =>
+    apiRequest(`/projects/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id) => apiRequest(`/projects/${id}`, { method: "DELETE" }),
 };
 
 export const ticketsApi = {
@@ -152,6 +158,39 @@ export const ticketsApi = {
       method: "POST",
       body: JSON.stringify({ body }),
     }),
+  addInternalNote: (id, body) =>
+    apiRequest(`/tickets/${id}/internal-notes`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
+  reviewReopenRequest: (id, requestId, decision, adminNote) =>
+    apiRequest(`/tickets/${id}/reopen-requests/${requestId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ decision, adminNote }),
+    }),
+};
+export const adminTicketsApi = {
+  overview: () => apiRequest("/admin/tickets/overview"),
+  updateStatus: (id, status) =>
+    apiRequest(`/admin/tickets/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  addComment: (id, body) =>
+    apiRequest(`/admin/tickets/${id}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
+  addInternalNote: (id, body) =>
+    apiRequest(`/admin/tickets/${id}/internal-notes`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
+  reviewReopenRequest: (id, requestId, decision, adminNote) =>
+    apiRequest(`/admin/tickets/${id}/reopen-requests/${requestId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ decision, adminNote }),
+    }),
 };
 export const dashboardApi = {
   summary: () => apiRequest("/dashboard/summary"),
@@ -163,6 +202,23 @@ export const organizationApi = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
+};
+
+export const githubApi = {
+  status: () => apiRequest("/github/status"),
+  saveInstallation: (installationId) =>
+    apiRequest("/github/installations", {
+      method: "POST",
+      body: JSON.stringify({ installationId }),
+    }),
+  repositories: (installationId) => apiRequest(`/github/installations/${installationId}/repositories`),
+  connectProjectRepository: (projectId, payload) =>
+    apiRequest(`/github/projects/${projectId}/repository`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  disconnectProjectRepository: (projectId) =>
+    apiRequest(`/github/projects/${projectId}/repository`, { method: "DELETE" }),
 };
 export { getTokens, setTokens, clearTokens };
 

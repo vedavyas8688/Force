@@ -9,6 +9,11 @@ const populateFields = [
   { path: "customerId", select: "name email" },
   { path: "assignedTo", select: "name email role" },
   { path: "comments.authorId", select: "name email role" },
+  { path: "internalNotes.authorId", select: "name email role" },
+  { path: "activity.actorId", select: "name email role" },
+  { path: "closedBy", select: "name email role" },
+  { path: "reopenRequests.requestedBy", select: "name email role" },
+  { path: "reopenRequests.reviewedBy", select: "name email role" },
 ];
 
 export async function listTickets({ organizationId, user }) {
@@ -22,7 +27,8 @@ export async function listTickets({ organizationId, user }) {
     filter.assignedTo = user.sub;
   }
 
-  return Ticket.find(filter).sort({ createdAt: -1 }).populate(populateFields).lean();
+  const tickets = await Ticket.find(filter).sort({ createdAt: -1 }).populate(populateFields).lean();
+  return tickets.map((ticket) => sanitizeTicketForRole(ticket, user.role));
 }
 
 export async function getTicket({ organizationId, user, ticketId }) {
@@ -35,10 +41,10 @@ export async function getTicket({ organizationId, user, ticketId }) {
     throw err;
   }
 
-  return ticket;
+  return sanitizeTicketForRole(ticket, user.role);
 }
 
-export async function createTicket({ organizationId, customerId, projectId, title, description, priority }) {
+export async function createTicket({ organizationId, customerId, projectId, title, description, priority, dueDate }) {
   const project = await Project.findOne({ _id: projectId, organizationId, status: "active" });
   if (!project) {
     const err = new Error("Project not found");
@@ -46,37 +52,103 @@ export async function createTicket({ organizationId, customerId, projectId, titl
     throw err;
   }
 
-  return Ticket.create({
+  const ticket = await Ticket.create({
     organizationId,
     customerId,
     projectId,
     title,
     description,
     priority: priority || "medium",
+    dueDate: dueDate || null,
+    activity: [
+      {
+        actorId: customerId,
+        action: "ticket_created",
+        message: "Ticket created",
+        toStatus: "open",
+      },
+    ],
   });
+
+  try {
+    return await autoAssignTicket({
+      organizationId,
+      ticketId: ticket._id,
+    });
+  } catch (err) {
+    if (err.message !== "No active developers available") {
+      throw err;
+    }
+
+    const unassignedTicket = await Ticket.findById(ticket._id).populate(populateFields);
+    return sanitizeTicketForRole(unassignedTicket.toObject(), "customer");
+  }
 }
 
 export async function updateTicketStatus({ organizationId, user, ticketId, status }) {
-  assertStatusAllowedForRole({ role: user.role, status });
-
   const filter = buildTicketAccessFilter({ organizationId, user, ticketId });
-  const ticket = await Ticket.findOneAndUpdate(
-    filter,
-    { $set: { status } },
-    { new: true, runValidators: true }
-  ).populate(populateFields);
+  const existing = await Ticket.findOne(filter);
 
-  if (!ticket) {
+  if (!existing) {
     const err = new Error("Ticket not found");
     err.status = 404;
     throw err;
   }
 
-  return ticket;
+  assertStatusAllowedForRole({ role: user.role, fromStatus: existing.status, status });
+
+  if (existing.status === "closed" && status !== "closed") {
+    const err = new Error("Closed tickets require an approved reopen request");
+    err.status = 403;
+    throw err;
+  }
+
+  const now = new Date();
+  const update = {
+    $set: { status },
+    $push: {
+      activity: {
+        actorId: user.sub,
+        action: status === "completed" ? "completed" : status === "closed" ? "closed" : "status_changed",
+        message: `Status changed from ${existing.status} to ${status}`,
+        fromStatus: existing.status,
+        toStatus: status,
+      },
+    },
+  };
+
+  if (status === "completed") {
+    update.$set.completedAt = now;
+  }
+
+  if (status === "closed") {
+    update.$set.closedAt = now;
+    update.$set.closedBy = user.sub;
+  }
+
+  const ticket = await Ticket.findOneAndUpdate(filter, update, {
+    new: true,
+    runValidators: true,
+  }).populate(populateFields);
+
+  return sanitizeTicketForRole(ticket.toObject(), user.role);
 }
 
 export async function addTicketComment({ organizationId, user, ticketId, body }) {
   const filter = buildTicketAccessFilter({ organizationId, user, ticketId });
+  const existing = await Ticket.findOne(filter).select("status");
+  if (!existing) {
+    const err = new Error("Ticket not found");
+    err.status = 404;
+    throw err;
+  }
+
+  if (existing.status === "closed") {
+    const err = new Error("Closed ticket conversation is locked");
+    err.status = 403;
+    throw err;
+  }
+
   const ticket = await Ticket.findOneAndUpdate(
     filter,
     {
@@ -84,6 +156,12 @@ export async function addTicketComment({ organizationId, user, ticketId, body })
         comments: {
           authorId: user.sub,
           body,
+          visibility: "public",
+        },
+        activity: {
+          actorId: user.sub,
+          action: user.role === "customer" ? "customer_replied" : "agent_replied",
+          message: body,
         },
       },
     },
@@ -96,7 +174,148 @@ export async function addTicketComment({ organizationId, user, ticketId, body })
     throw err;
   }
 
-  return ticket;
+  return sanitizeTicketForRole(ticket.toObject(), user.role);
+}
+
+export async function addInternalNote({ organizationId, user, ticketId, body }) {
+  if (!["admin", "developer"].includes(user.role)) {
+    const err = new Error("Internal notes are not available to customers");
+    err.status = 403;
+    throw err;
+  }
+
+  const filter = buildTicketAccessFilter({ organizationId, user, ticketId });
+  const existing = await Ticket.findOne(filter).select("status");
+  if (!existing) {
+    const err = new Error("Ticket not found");
+    err.status = 404;
+    throw err;
+  }
+
+  if (existing.status === "closed") {
+    const err = new Error("Closed tickets are locked");
+    err.status = 403;
+    throw err;
+  }
+
+  const ticket = await Ticket.findOneAndUpdate(
+    filter,
+    {
+      $push: {
+        internalNotes: {
+          authorId: user.sub,
+          body,
+        },
+        activity: {
+          actorId: user.sub,
+          action: "internal_note_added",
+          message: body,
+        },
+      },
+    },
+    { new: true }
+  ).populate(populateFields);
+
+  return sanitizeTicketForRole(ticket.toObject(), user.role);
+}
+
+export async function requestReopen({ organizationId, user, ticketId, reason }) {
+  if (user.role !== "customer") {
+    const err = new Error("Only customers can request reopening");
+    err.status = 403;
+    throw err;
+  }
+
+  const filter = buildTicketAccessFilter({ organizationId, user, ticketId });
+  const existing = await Ticket.findOne(filter).select("status reopenRequests");
+  if (!existing) {
+    const err = new Error("Ticket not found");
+    err.status = 404;
+    throw err;
+  }
+
+  if (existing.status !== "closed") {
+    const err = new Error("Only closed tickets can request reopening");
+    err.status = 400;
+    throw err;
+  }
+
+  if (existing.reopenRequests?.some((request) => request.status === "pending")) {
+    const err = new Error("A reopen request is already pending");
+    err.status = 400;
+    throw err;
+  }
+
+  const ticket = await Ticket.findOneAndUpdate(
+    filter,
+    {
+      $push: {
+        reopenRequests: {
+          requestedBy: user.sub,
+          reason,
+        },
+        activity: {
+          actorId: user.sub,
+          action: "reopen_requested",
+          message: reason,
+        },
+      },
+    },
+    { new: true }
+  ).populate(populateFields);
+
+  return sanitizeTicketForRole(ticket.toObject(), user.role);
+}
+
+export async function reviewReopenRequest({ organizationId, user, ticketId, requestId, decision, adminNote }) {
+  if (user.role !== "admin") {
+    const err = new Error("Only admins can review reopen requests");
+    err.status = 403;
+    throw err;
+  }
+
+  const ticket = await Ticket.findOne({ _id: ticketId, organizationId });
+  if (!ticket) {
+    const err = new Error("Ticket not found");
+    err.status = 404;
+    throw err;
+  }
+
+  const request = ticket.reopenRequests.id(requestId);
+  if (!request || request.status !== "pending") {
+    const err = new Error("Pending reopen request not found");
+    err.status = 404;
+    throw err;
+  }
+
+  const approved = decision === "approved";
+  request.status = approved ? "approved" : "rejected";
+  request.reviewedBy = user.sub;
+  request.reviewedAt = new Date();
+  request.adminNote = adminNote || "";
+
+  ticket.activity.push({
+    actorId: user.sub,
+    action: approved ? "reopen_approved" : "reopen_rejected",
+    message: adminNote || (approved ? "Reopen approved" : "Reopen rejected"),
+  });
+
+  if (approved) {
+    ticket.status = ticket.assignedTo ? "assigned" : "open";
+    ticket.closedAt = null;
+    ticket.closedBy = null;
+    ticket.activity.push({
+      actorId: user.sub,
+      action: "status_changed",
+      message: `Ticket reopened to ${ticket.status}`,
+      fromStatus: "closed",
+      toStatus: ticket.status,
+    });
+  }
+
+  await ticket.save();
+  const updatedTicket = await Ticket.findById(ticket._id).populate(populateFields);
+  return sanitizeTicketForRole(updatedTicket.toObject(), user.role);
 }
 
 export async function assignTicket({ organizationId, ticketId, developerId }) {
@@ -115,7 +334,16 @@ export async function assignTicket({ organizationId, ticketId, developerId }) {
 
   const ticket = await Ticket.findOneAndUpdate(
     { _id: ticketId, organizationId },
-    { $set: { assignedTo: developer._id, status: "assigned" } },
+    {
+      $set: { assignedTo: developer._id, status: "assigned" },
+      $push: {
+        activity: {
+          action: "assigned",
+          message: `Assigned to ${developer.email}`,
+          toStatus: "assigned",
+        },
+      },
+    },
     { new: true }
   ).populate(populateFields);
 
@@ -125,7 +353,7 @@ export async function assignTicket({ organizationId, ticketId, developerId }) {
     throw err;
   }
 
-  return ticket;
+  return sanitizeTicketForRole(ticket.toObject(), "admin");
 }
 
 export async function autoAssignTicket({ organizationId, ticketId, strategy }) {
@@ -250,11 +478,11 @@ function buildTicketAccessFilter({ organizationId, user, ticketId }) {
   return filter;
 }
 
-function assertStatusAllowedForRole({ role, status }) {
+function assertStatusAllowedForRole({ role, fromStatus, status }) {
   const allowedByRole = {
-    admin: ["open", "triaged", "assigned", "in_progress", "resolved", "closed"],
-    developer: ["in_progress", "resolved", "closed"],
-    customer: ["open", "closed"],
+    admin: ["open", "assigned", "in_progress", "pending_customer", "completed", "closed"],
+    developer: ["in_progress", "pending_customer", "completed", "closed"],
+    customer: ["closed"],
   };
 
   if (!allowedByRole[role]?.includes(status)) {
@@ -262,4 +490,30 @@ function assertStatusAllowedForRole({ role, status }) {
     err.status = 403;
     throw err;
   }
+
+  const completedStatuses = ["completed", "resolved"];
+
+  if (role === "customer" && !(completedStatuses.includes(fromStatus) && status === "closed")) {
+    const err = new Error("Customer can only close completed tickets");
+    err.status = 403;
+    throw err;
+  }
+
+  if (role === "developer" && status === "closed" && !completedStatuses.includes(fromStatus)) {
+    const err = new Error("Developer can only close completed tickets");
+    err.status = 403;
+    throw err;
+  }
+}
+
+function sanitizeTicketForRole(ticket, role) {
+  if (role !== "customer") {
+    return ticket;
+  }
+
+  return {
+    ...ticket,
+    internalNotes: undefined,
+    activity: (ticket.activity || []).filter((item) => item.action !== "internal_note_added"),
+  };
 }

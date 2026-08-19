@@ -3,16 +3,18 @@ import { ticketsApi } from "../api/client";
 
 const tabs = [
   { key: "open", label: "Open", statuses: ["open", "triaged"] },
-  { key: "assigned", label: "Assigned", statuses: ["assigned", "in_progress"] },
-  { key: "completed", label: "Completed", statuses: ["resolved"] },
+  { key: "assigned", label: "Assigned", statuses: ["assigned"] },
+  { key: "in_progress", label: "In Progress", statuses: ["in_progress"] },
+  { key: "pending_customer", label: "Pending Customer", statuses: ["pending_customer"] },
+  { key: "completed", label: "Completed", statuses: ["completed", "resolved"] },
   { key: "closed", label: "Closed", statuses: ["closed"] },
-  { key: "all", label: "All", statuses: null },
 ];
 
 export default function Tickets() {
   const [tickets, setTickets] = useState([]);
   const [activeTab, setActiveTab] = useState("open");
   const [commentByTicket, setCommentByTicket] = useState({});
+  const [reopenReasonByTicket, setReopenReasonByTicket] = useState({});
   const [busyTicketId, setBusyTicketId] = useState("");
   const [error, setError] = useState("");
 
@@ -75,6 +77,25 @@ export default function Tickets() {
     }
   }
 
+  async function requestReopen(ticketId) {
+    const reason = (reopenReasonByTicket[ticketId] || "").trim();
+    if (!reason) return;
+
+    setBusyTicketId(ticketId);
+    setError("");
+    try {
+      const data = await ticketsApi.requestReopen(ticketId, reason);
+      setTickets((current) =>
+        current.map((ticket) => (ticket._id === ticketId ? data.ticket : ticket))
+      );
+      setReopenReasonByTicket((current) => ({ ...current, [ticketId]: "" }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyTicketId("");
+    }
+  }
+
   return (
     <>
       <h1 className="page-title">My tickets</h1>
@@ -117,10 +138,15 @@ export default function Tickets() {
                     <span>Project: {ticket.projectId?.name || "-"}</span>
                     <span>Developer: {ticket.assignedTo?.email || "Unassigned"}</span>
                     <span>Priority: {ticket.priority}</span>
+                    <span>Due: {ticket.dueDate ? new Date(ticket.dueDate).toLocaleDateString() : "-"}</span>
+                    <span>Created: {ticket.createdAt ? new Date(ticket.createdAt).toLocaleString() : "-"}</span>
+                    <span>Updated: {ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleString() : "-"}</span>
+                    {ticket.completedAt && <span>Completed: {new Date(ticket.completedAt).toLocaleString()}</span>}
+                    {ticket.closedAt && <span>Closed: {new Date(ticket.closedAt).toLocaleString()}</span>}
                   </div>
-                  {(ticket.status === "resolved" || isClosed) && (
+                  {(["completed", "resolved"].includes(ticket.status) || isClosed) && (
                     <div className="status-action-row">
-                      {ticket.status === "resolved" && (
+                      {["completed", "resolved"].includes(ticket.status) && (
                         <button
                           className="btn-primary compact-action"
                           type="button"
@@ -130,14 +156,39 @@ export default function Tickets() {
                           Close ticket
                         </button>
                       )}
+                    </div>
+                  )}
+                  {isClosed && (
+                    <div className="comment-form">
+                      <input
+                        value={reopenReasonByTicket[ticket._id] || ""}
+                        onChange={(e) =>
+                          setReopenReasonByTicket((current) => ({ ...current, [ticket._id]: e.target.value }))
+                        }
+                        placeholder="Reason to request reopen"
+                      />
                       <button
-                        className="btn-secondary compact-action"
+                        className="btn-secondary inline-button"
                         type="button"
-                        disabled={busyTicketId === ticket._id}
-                        onClick={() => updateStatus(ticket._id, "open")}
+                        disabled={
+                          busyTicketId === ticket._id ||
+                          (ticket.reopenRequests || []).some((request) => request.status === "pending")
+                        }
+                        onClick={() => requestReopen(ticket._id)}
                       >
-                        Reopen
+                        Request reopen
                       </button>
+                    </div>
+                  )}
+                  {(ticket.reopenRequests || []).length > 0 && (
+                    <div className="comment-list">
+                      {ticket.reopenRequests.map((request) => (
+                        <div className="comment-item" key={request._id || request.createdAt}>
+                          <strong>Reopen request: {request.status}</strong>
+                          <span>{request.reason}</span>
+                          {request.adminNote && <span>{request.adminNote}</span>}
+                        </div>
+                      ))}
                     </div>
                   )}
                   <div className="comment-list">
@@ -169,6 +220,17 @@ export default function Tickets() {
                       >
                         Reply
                       </button>
+                    </div>
+                  )}
+                  {(ticket.activity || []).length > 0 && (
+                    <div className="activity-list">
+                      {ticket.activity.slice().reverse().map((item) => (
+                        <div key={item._id || item.createdAt}>
+                          <strong>{item.action.replaceAll("_", " ")}</strong>
+                          <span>{item.actorId?.email || item.actorId?.name || "System"}</span>
+                          <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </article>

@@ -21,7 +21,18 @@ const projectSchema = new mongoose.Schema(
     repository: {
       provider: { type: String, default: "github" },
       fullName: { type: String, default: "" },
+      owner: { type: String, default: "" },
+      name: { type: String, default: "" },
       defaultBranch: { type: String, default: "main" },
+      installationId: { type: Number, default: null },
+      lastCommitSha: { type: String, default: "" },
+      lastSyncedAt: { type: Date, default: null },
+      syncStatus: {
+        type: String,
+        enum: ["not_connected", "connected", "syncing", "synced", "failed"],
+        default: "not_connected",
+      },
+      syncError: { type: String, default: "" },
     },
     status: {
       type: String,
