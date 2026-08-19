@@ -2,7 +2,7 @@ import * as authService from "../services/auth/auth.service.js";
 
 export async function signupHandler(req, res, next) {
   try {
-    const { organizationName, name, email, password } = req.body;
+    const { organizationName, name, email, password, phone, role } = req.body;
 
     if (!organizationName || !name || !email || !password) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -11,7 +11,7 @@ export async function signupHandler(req, res, next) {
       return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
 
-    const result = await authService.signup({ organizationName, name, email, password });
+    const result = await authService.signup({ organizationName, name, email, password, phone, role });
     res.status(201).json(result);
   } catch (err) {
     next(err);

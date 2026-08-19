@@ -23,6 +23,7 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true,
+      default: () => `auto-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
     },
     passwordHash: {
       type: String,

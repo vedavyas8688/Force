@@ -23,7 +23,7 @@ function slugify(name) {
  * Registers a brand-new organization AND its first admin user.
  * (Inviting additional users to an existing org is a separate flow.)
  */
-export async function signup({ organizationName, name, email, password }) {
+export async function signup({ organizationName, name, email, password, phone, role = "admin" }) {
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) {
     const err = new Error("Email already in use");
@@ -37,16 +37,33 @@ export async function signup({ organizationName, name, email, password }) {
   });
 
   const passwordHash = await User.hashPassword(password);
+  const normalizedRole = ["admin", "developer", "customer"].includes(role) ? role : "admin";
 
   const user = await User.create({
     organizationId: organization._id,
     name,
     email: email.toLowerCase(),
+    phone: phone?.trim() || createUniquePhonePlaceholder(),
     passwordHash,
-    role: "admin", // first user of a new org is always admin
+    role: normalizedRole,
   });
 
+  if (otpRequiredRoles.has(user.role)) {
+    const otp = await sendLoginOtp(user);
+
+    return {
+      requiresOtp: true,
+      email: user.email,
+      role: user.role,
+      ...(process.env.NODE_ENV !== "production" ? { devOtp: otp } : {}),
+    };
+  }
+
   return issueTokens(user);
+}
+
+function createUniquePhonePlaceholder() {
+  return `auto-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export async function login({ email, password }) {

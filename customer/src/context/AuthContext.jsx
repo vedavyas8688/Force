@@ -45,6 +45,11 @@ export function AuthProvider({ children }) {
   async function signup(payload) {
     const { res, data } = await authApi.signup(payload);
     if (!res.ok) throw new Error(data?.error || "Signup failed");
+
+    if (data?.requiresOtp) {
+      return data;
+    }
+
     setTokens(data);
     setUser(data.user);
     return data.user;
@@ -72,4 +77,5 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
+
 
