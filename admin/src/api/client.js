@@ -100,5 +100,17 @@ export const authApi = {
   me: () => apiRequest("/auth/me"),
 };
 
+export const usersApi = {
+  list: () => apiRequest("/users"),
+  invite: (payload) =>
+    apiRequest("/users/invite", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id) => apiRequest(`/users/${id}`, { method: "DELETE" }),
+};
+
 export { getTokens, setTokens, clearTokens };
+
+
 

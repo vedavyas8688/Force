@@ -1,11 +1,13 @@
 import { Router } from "express";
 import authRoutes from "./auth.routes.js";
+import userRoutes from "./user.routes.js";
 import { requireAuth } from "../middleware/auth.js";
 import { attachTenant } from "../middleware/tenant.js";
 
 const router = Router();
 
 router.use("/auth", authRoutes);
+router.use("/users", userRoutes);
 
 // Temporary protected route to verify auth + tenant middleware.
 // Move this into an organizations module when that feature grows.

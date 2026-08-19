@@ -101,10 +101,16 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  acceptInvite: (payload) =>
+    rawRequest("/users/accept-invite", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   logout: () => apiRequest("/auth/logout", { method: "POST" }),
   me: () => apiRequest("/auth/me"),
 };
 
 export { getTokens, setTokens, clearTokens };
+
 
 

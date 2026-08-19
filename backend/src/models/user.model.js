@@ -53,6 +53,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    inviteOtpHash: {
+      type: String,
+      select: false,
+    },
+    inviteOtpExpiresAt: {
+      type: Date,
+      select: false,
+    },
   },
   { timestamps: true }
 );

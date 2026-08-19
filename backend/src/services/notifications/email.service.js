@@ -36,3 +36,22 @@ export async function sendLoginOtpEmail({ to, name, otp }) {
     html: `<p>Hi ${name},</p><p>Your Force login OTP is <strong>${otp}</strong>.</p><p>It expires in 5 minutes.</p>`,
   });
 }
+
+export async function sendInviteOtpEmail({ to, name, role, otp, acceptUrl }) {
+  const subject = "Your Force invite OTP";
+  const text = `Hi ${name},\n\nYou were invited to Force as ${role}.\n\nOpen this link: ${acceptUrl}\n\nYour invite OTP is ${otp}. It expires in 5 minutes.`;
+
+  if (!hasSmtpConfig()) {
+    return;
+  }
+
+  const transporter = createTransporter();
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to,
+    subject,
+    text,
+    html: `<p>Hi ${name},</p><p>You were invited to Force as <strong>${role}</strong>.</p><p><a href="${acceptUrl}">Accept invite</a></p><p>Your invite OTP is <strong>${otp}</strong>.</p><p>It expires in 5 minutes.</p>`,
+  });
+}

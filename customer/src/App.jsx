@@ -4,6 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import AcceptInvite from "./pages/AcceptInvite";
 import Dashboard from "./pages/Dashboard";
 import Tickets from "./pages/Tickets";
 import NewTicket from "./pages/NewTicket";
@@ -16,6 +17,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/accept-invite" element={<AcceptInvite />} />
 
           <Route
             element={
@@ -34,3 +36,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
