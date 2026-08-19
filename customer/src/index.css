@@ -362,3 +362,42 @@ button, input {
   font-size: 12.5px;
   margin-bottom: 14px;
 }
+.form-success {
+  display: grid;
+  gap: 3px;
+  background: #ecfdf3;
+  color: #087443;
+  border: 1px solid #b7ebc6;
+  border-radius: 6px;
+  padding: 9px 11px;
+  font-size: 12.5px;
+  margin-bottom: 14px;
+}
+
+.form-success strong {
+  font-size: 12px;
+  color: #065f38;
+}
+
+.form-success span {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.btn-secondary {
+  width: 100%;
+  padding: 10px 14px;
+  margin-top: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+

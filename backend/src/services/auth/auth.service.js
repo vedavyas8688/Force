@@ -68,13 +68,14 @@ export async function login({ email, password }) {
   }
 
   if (otpRequiredRoles.has(user.role)) {
-    await sendLoginOtp(user);
+    const otp = await sendLoginOtp(user);
 
     return {
       requiresOtp: true,
       email: user.email,
       role: user.role,
       message: "OTP sent to your email",
+      ...(process.env.NODE_ENV !== "production" ? { devOtp: otp } : {}),
     };
   }
 
@@ -179,4 +180,6 @@ async function sendLoginOtp(user) {
     name: user.name,
     otp,
   });
+
+  return otp;
 }

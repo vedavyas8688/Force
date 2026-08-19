@@ -96,9 +96,15 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  verifyOtp: (payload) =>
+    rawRequest("/auth/verify-otp", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   logout: () => apiRequest("/auth/logout", { method: "POST" }),
   me: () => apiRequest("/auth/me"),
 };
 
 export { getTokens, setTokens, clearTokens };
+
 

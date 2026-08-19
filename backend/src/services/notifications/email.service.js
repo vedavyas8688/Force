@@ -20,8 +20,9 @@ export async function sendLoginOtpEmail({ to, name, otp }) {
   const subject = "Your Force login OTP";
   const text = `Hi ${name},\n\nYour Force login OTP is ${otp}. It expires in 5 minutes.\n\nIf this was not you, ignore this email.`;
 
+  console.log(`[auth] Login OTP for ${to}: ${otp}`);
+
   if (!hasSmtpConfig()) {
-    console.log(`[email] OTP for ${to}: ${otp}`);
     return;
   }
 

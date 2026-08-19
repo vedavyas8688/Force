@@ -24,6 +24,19 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const { res, data } = await authApi.login({ email, password });
     if (!res.ok) throw new Error(data?.error || "Login failed");
+
+    if (data?.requiresOtp) {
+      return data;
+    }
+
+    setTokens(data);
+    setUser(data.user);
+    return data.user;
+  }
+
+  async function verifyOtp(email, otp) {
+    const { res, data } = await authApi.verifyOtp({ email, otp });
+    if (!res.ok) throw new Error(data?.error || "OTP verification failed");
     setTokens(data);
     setUser(data.user);
     return data.user;
@@ -48,7 +61,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyOtp, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -59,3 +72,4 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
+
