@@ -110,7 +110,44 @@ export const authApi = {
   me: () => apiRequest("/auth/me"),
 };
 
+export const projectsApi = {
+  list: () => apiRequest("/projects"),
+  create: (payload) =>
+    apiRequest("/projects", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+};
+
+export const ticketsApi = {
+  list: () => apiRequest("/tickets"),
+  get: (id) => apiRequest(`/tickets/${id}`),
+  create: (payload) =>
+    apiRequest("/tickets", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  assign: (id, developerId) =>
+    apiRequest(`/tickets/${id}/assign`, {
+      method: "PATCH",
+      body: JSON.stringify({ developerId }),
+    }),
+  updateStatus: (id, status) =>
+    apiRequest(`/tickets/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  addComment: (id, body) =>
+    apiRequest(`/tickets/${id}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
+};
+export const dashboardApi = {
+  summary: () => apiRequest("/dashboard/summary"),
+};
 export { getTokens, setTokens, clearTokens };
+
 
 
 

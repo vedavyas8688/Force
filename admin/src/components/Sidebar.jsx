@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: "/projects", label: "Projects", icon: "P" },
   { to: "/repositories", label: "Git Settings", icon: "G" },
   { to: "/users", label: "Users", icon: "U" },
+  { to: "/settings", label: "Settings", icon: "S" },
 ];
 
 export default function Sidebar() {
@@ -49,3 +50,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+

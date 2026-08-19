@@ -11,6 +11,7 @@ import Assignments from "./pages/Assignments";
 import Projects from "./pages/Projects";
 import Repositories from "./pages/Repositories";
 import Users from "./pages/Users";
+import Settings from "./pages/Settings";
 
 export default function App() {
   return (
@@ -34,9 +35,11 @@ export default function App() {
             <Route path="/projects" element={<Projects />} />
             <Route path="/repositories" element={<Repositories />} />
             <Route path="/users" element={<Users />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
         </Routes>
       </AuthProvider>
     </BrowserRouter>
   );
 }
+

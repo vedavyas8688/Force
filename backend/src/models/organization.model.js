@@ -24,6 +24,19 @@ const organizationSchema = new mongoose.Schema(
       enum: ["active", "suspended"],
       default: "active",
     },
+    assignmentState: {
+      roundRobinIndex: {
+        type: Number,
+        default: 0,
+      },
+    },
+    assignmentSettings: {
+      defaultStrategy: {
+        type: String,
+        enum: ["round_robin", "least_load", "random", "first_available"],
+        default: "round_robin",
+      },
+    },
   },
   { timestamps: true }
 );

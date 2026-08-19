@@ -1,37 +1,80 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { projectsApi, ticketsApi } from "../api/client";
+
+const initialForm = { projectId: "", title: "", description: "", priority: "medium" };
 
 export default function NewTicket() {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const navigate = useNavigate();
+  const [projects, setProjects] = useState([]);
+  const [form, setForm] = useState(initialForm);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  function handleSubmit(e) {
+  useEffect(() => { loadProjects(); }, []);
+
+  async function loadProjects() {
+    try {
+      const data = await projectsApi.list();
+      const active = (data.projects || []).filter((project) => project.status === "active");
+      setProjects(active);
+      if (active[0]) setForm((current) => ({ ...current, projectId: active[0]._id }));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function update(field) {
+    return (e) => setForm((current) => ({ ...current, [field]: e.target.value }));
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault();
-    // Wire this up to POST /api/tickets once the tickets module exists.
-    alert("Ticket submission isn't wired to the backend yet.");
+    setError("");
+    setBusy(true);
+    try {
+      await ticketsApi.create(form);
+      navigate("/tickets");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <>
       <h1 className="page-title">New ticket</h1>
-      <p className="page-subtitle">Describe the problem — the more detail, the faster AI can investigate it.</p>
-      <form className="panel" onSubmit={handleSubmit} style={{ maxWidth: 560 }}>
+      <p className="page-subtitle">Describe the issue and attach it to a project.</p>
+      <form className="panel ticket-form" onSubmit={handleSubmit}>
+        {error && <div className="form-error">{error}</div>}
+        <div className="field">
+          <label htmlFor="projectId">Project</label>
+          <select id="projectId" required value={form.projectId} onChange={update("projectId")}>
+            {projects.length === 0 ? <option value="">No projects available</option> : projects.map((project) => (
+              <option key={project._id} value={project._id}>{project.name}</option>
+            ))}
+          </select>
+        </div>
         <div className="field">
           <label htmlFor="title">Title</label>
-          <input id="title" required value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input id="title" required value={form.title} onChange={update("title")} />
         </div>
         <div className="field">
           <label htmlFor="description">What happened?</label>
-          <textarea
-            id="description"
-            required
-            rows={6}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            style={{ width: "100%", padding: 10, border: "1px solid var(--border)", borderRadius: 6, fontFamily: "inherit" }}
-          />
+          <textarea id="description" required rows={6} value={form.description} onChange={update("description")} />
         </div>
-        <button className="btn-primary" type="submit" style={{ width: "auto", padding: "10px 20px" }}>
-          Submit ticket
+        <div className="field">
+          <label htmlFor="priority">Priority</label>
+          <select id="priority" value={form.priority} onChange={update("priority")}>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <button className="btn-primary form-button" type="submit" disabled={busy || projects.length === 0}>
+          {busy ? "Submitting..." : "Submit ticket"}
         </button>
       </form>
     </>

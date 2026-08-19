@@ -110,7 +110,64 @@ export const usersApi = {
   remove: (id) => apiRequest(`/users/${id}`, { method: "DELETE" }),
 };
 
+export const projectsApi = {
+  list: () => apiRequest("/projects"),
+  create: (payload) =>
+    apiRequest("/projects", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+};
+
+export const ticketsApi = {
+  list: () => apiRequest("/tickets"),
+  get: (id) => apiRequest(`/tickets/${id}`),
+  create: (payload) =>
+    apiRequest("/tickets", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  assign: (id, developerId) =>
+    apiRequest(`/tickets/${id}/assign`, {
+      method: "PATCH",
+      body: JSON.stringify({ developerId }),
+    }),
+  autoAssign: (id, strategy) =>
+    apiRequest(`/tickets/${id}/auto-assign`, {
+      method: "PATCH",
+      body: JSON.stringify(strategy ? { strategy } : {}),
+    }),
+  autoAssignAll: (strategy) =>
+    apiRequest("/tickets/auto-assign", {
+      method: "POST",
+      body: JSON.stringify(strategy ? { strategy } : {}),
+    }),
+  updateStatus: (id, status) =>
+    apiRequest(`/tickets/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  addComment: (id, body) =>
+    apiRequest(`/tickets/${id}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
+};
+export const dashboardApi = {
+  summary: () => apiRequest("/dashboard/summary"),
+};
+export const organizationApi = {
+  settings: () => apiRequest("/organizations/settings"),
+  updateAssignmentSettings: (payload) =>
+    apiRequest("/organizations/settings/assignment", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+};
 export { getTokens, setTokens, clearTokens };
+
+
+
 
 
 
