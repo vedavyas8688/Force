@@ -19,7 +19,6 @@ const statusBuckets = {
   open: ["open", "triaged"],
   assigned: ["assigned"],
   inProgress: ["in_progress"],
-  pendingCustomer: ["pending_customer"],
   completed: ["completed", "resolved"],
   closed: ["closed"],
 };
@@ -150,7 +149,6 @@ function buildCounts(tickets) {
     open: 0,
     assigned: 0,
     inProgress: 0,
-    pendingCustomer: 0,
     completed: 0,
     closed: 0,
     reopenRequests: 0,

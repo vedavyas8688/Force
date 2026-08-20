@@ -1,30 +1,32 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
+import { authApi } from "../api/client";
 
 export default function Signup() {
-  const { signup } = useAuth();
-  const navigate = useNavigate();
   const [form, setForm] = useState({
     organizationName: "",
     name: "",
     email: "",
-    password: "",
   });
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
   function update(field) {
-    return (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+    return (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(event) {
+    event.preventDefault();
     setError("");
+    setNotice("");
     setBusy(true);
+
     try {
-      await signup(form);
-      navigate("/");
+      const { res, data } = await authApi.signup(form);
+      if (!res.ok) throw new Error(data?.error || "Request failed");
+      setNotice(data?.message || "Request submitted. You will receive an email after approval.");
+      setForm({ organizationName: "", name: "", email: "" });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -36,9 +38,13 @@ export default function Signup() {
     <div className="auth-screen">
       <form className="auth-card" onSubmit={handleSubmit}>
         <div className="auth-mark">:3002</div>
-        <h1 className="auth-title">Create your organization</h1>
+        <h1 className="auth-title">Request organization access</h1>
+        <p className="auth-copy">
+          A Super Admin will approve the request. After approval, an invite email will let you set your password.
+        </p>
 
         {error && <div className="form-error">{error}</div>}
+        {notice && <div className="form-success">{notice}</div>}
 
         <div className="field">
           <label htmlFor="organizationName">Organization name</label>
@@ -67,25 +73,12 @@ export default function Signup() {
           />
         </div>
 
-        <div className="field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            required
-            minLength={8}
-            value={form.password}
-            onChange={update("password")}
-            autoComplete="new-password"
-          />
-        </div>
-
         <button className="btn-primary" type="submit" disabled={busy}>
-          {busy ? "Creating…" : "Create organization"}
+          {busy ? "Submitting..." : "Submit request"}
         </button>
 
         <div className="auth-switch">
-          Already have an account? <Link to="/login">Sign in</Link>
+          Already approved? <Link to="/login">Sign in</Link>
         </div>
       </form>
     </div>

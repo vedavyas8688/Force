@@ -1,4 +1,5 @@
 import { User } from "../../models/user.model.js";
+import { Organization } from "../../models/organization.model.js";
 import { sendInviteOtpEmail } from "../notifications/email.service.js";
 import { hashRefreshToken, compareRefreshToken } from "../auth/token.service.js";
 
@@ -78,6 +79,13 @@ export async function acceptInvite({ email, otp, password }) {
   if (!user || user.status !== "invited") {
     const err = new Error("Invalid invite");
     err.status = 401;
+    throw err;
+  }
+
+  const organization = await Organization.findById(user.organizationId).select("status").lean();
+  if (!organization || organization.status !== "active") {
+    const err = new Error("Organization is not approved yet");
+    err.status = 403;
     throw err;
   }
 

@@ -1,9 +1,12 @@
-import { Building2, LayoutDashboard, LogOut, ShieldCheck, TicketCheck } from "lucide-react";
+import { BarChart3, Building2, LayoutDashboard, LogOut, ShieldCheck, TicketCheck, UserPlus } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 
 const navItems = [
   { to: "/", label: "Platform", icon: LayoutDashboard },
+  { to: "/organizations", label: "Organizations", icon: Building2 },
+  { to: "/admins", label: "Admins", icon: UserPlus },
+  { to: "/usage", label: "Usage & Compliance", icon: BarChart3 },
   { to: "/tickets", label: "Global Tickets", icon: TicketCheck },
 ];
 
@@ -49,16 +52,6 @@ export default function Layout() {
       </aside>
 
       <main className="main">
-        <header className="topbar">
-          <div>
-            <strong>Platform Control Center</strong>
-            <small>No organization-level Git access here</small>
-          </div>
-          <div className="topbar-pill">
-            <Building2 size={16} />
-            Multi-tenant platform
-          </div>
-        </header>
         <section className="content">
           <Outlet />
         </section>

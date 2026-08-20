@@ -38,8 +38,11 @@ export async function sendLoginOtpEmail({ to, name, otp }) {
 }
 
 export async function sendInviteOtpEmail({ to, name, role, otp, acceptUrl }) {
-  const subject = "Your Force invite OTP";
-  const text = `Hi ${name},\n\nYou were invited to Force as ${role}.\n\nOpen this link: ${acceptUrl}\n\nYour invite OTP is ${otp}. It expires in 5 minutes.`;
+  const subject = "Your Force invitation";
+  const roleLabel = formatRole(role);
+  const text = `Hi ${name},\n\nYou were invited to Force as ${roleLabel}.\n\nAccept your invitation here: ${acceptUrl}\n\nTemporary invite code: ${otp}\n\nThis code expires in 5 minutes. After accepting, use your email and new password to log in.`;
+
+  console.log(`[invite] ${roleLabel} invite code for ${to}: ${otp}`);
 
   if (!hasSmtpConfig()) {
     return;
@@ -52,6 +55,10 @@ export async function sendInviteOtpEmail({ to, name, role, otp, acceptUrl }) {
     to,
     subject,
     text,
-    html: `<p>Hi ${name},</p><p>You were invited to Force as <strong>${role}</strong>.</p><p><a href="${acceptUrl}">Accept invite</a></p><p>Your invite OTP is <strong>${otp}</strong>.</p><p>It expires in 5 minutes.</p>`,
+    html: `<p>Hi ${name},</p><p>You were invited to Force as <strong>${roleLabel}</strong>.</p><p><a href="${acceptUrl}">Accept invitation</a></p><p>Temporary invite code: <strong>${otp}</strong></p><p>This code expires in 5 minutes. After accepting, use your email and new password to log in.</p>`,
   });
+}
+
+function formatRole(role = "") {
+  return role.replaceAll("_", " ");
 }

@@ -31,7 +31,7 @@ export async function listTickets({ organizationId, user }) {
   }
 
   const tickets = await Ticket.find(filter).sort({ createdAt: -1 }).populate(populateFields).lean();
-  return tickets.map((ticket) => sanitizeTicketForRole(ticket, user.role));
+  return tickets.map((ticket) => sanitizeTicketListItem(sanitizeTicketForRole(ticket, user.role)));
 }
 
 export async function getTicket({ organizationId, user, ticketId }) {
@@ -248,13 +248,6 @@ export async function addInternalNote({ organizationId, user, ticketId, body }) 
     { new: true }
   ).populate(populateFields);
 
-  await notifyTicketEvent({
-    organizationId,
-    ticketId,
-    actorId: user.sub,
-    event: "ticket_reopen_requested",
-  });
-
   return sanitizeTicketForRole(ticket.toObject(), user.role);
 }
 
@@ -302,6 +295,13 @@ export async function requestReopen({ organizationId, user, ticketId, reason }) 
     },
     { new: true }
   ).populate(populateFields);
+
+  await notifyTicketEvent({
+    organizationId,
+    ticketId,
+    actorId: user.sub,
+    event: "ticket_reopen_requested",
+  });
 
   return sanitizeTicketForRole(ticket.toObject(), user.role);
 }
@@ -468,7 +468,16 @@ export async function analyzeTicketForUser({ organizationId, user, ticketId }) {
     throw err;
   }
 
-  await analyzeTicket({ organizationId, ticketId });
+  try {
+    await analyzeTicket({ organizationId, ticketId });
+  } catch (err) {
+    console.error("[ai] unexpected ticket analysis failure", {
+      ticketId,
+      organizationId,
+      message: err.message,
+    });
+  }
+
   const updatedTicket = await Ticket.findById(ticketId).populate(populateFields);
   return sanitizeTicketForRole(updatedTicket.toObject(), user.role);
 }
@@ -604,8 +613,8 @@ function buildTicketAccessFilter({ organizationId, user, ticketId }) {
 
 function assertStatusAllowedForRole({ role, fromStatus, status }) {
   const allowedByRole = {
-    admin: ["open", "assigned", "in_progress", "pending_customer", "completed", "closed"],
-    developer: ["in_progress", "pending_customer", "completed", "closed"],
+    admin: ["open", "assigned", "in_progress", "completed", "closed"],
+    developer: ["in_progress", "completed", "closed"],
     customer: ["closed"],
   };
 
@@ -639,5 +648,15 @@ function sanitizeTicketForRole(ticket, role) {
     ...ticket,
     internalNotes: undefined,
     activity: (ticket.activity || []).filter((item) => item.action !== "internal_note_added"),
+  };
+}
+
+function sanitizeTicketListItem(ticket) {
+  return {
+    ...ticket,
+    attachments: (ticket.attachments || []).map((attachment) => ({
+      ...attachment,
+      dataUrl: undefined,
+    })),
   };
 }

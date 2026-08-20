@@ -2,20 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { ticketsApi } from "../api/client";
 
 const tabs = [
+  { key: "all", label: "All", statuses: null },
   { key: "open", label: "Open", statuses: ["open", "triaged"] },
   { key: "assigned", label: "Assigned", statuses: ["assigned"] },
   { key: "in_progress", label: "In Progress", statuses: ["in_progress"] },
-  { key: "pending_customer", label: "Pending Customer", statuses: ["pending_customer"] },
   { key: "completed", label: "Completed", statuses: ["completed", "resolved"] },
   { key: "closed", label: "Closed", statuses: ["closed"] },
 ];
 
 export default function Tickets() {
   const [tickets, setTickets] = useState([]);
-  const [activeTab, setActiveTab] = useState("open");
+  const [activeTab, setActiveTab] = useState("all");
   const [reopenReasonByTicket, setReopenReasonByTicket] = useState({});
   const [busyTicketId, setBusyTicketId] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     loadTickets();
@@ -59,16 +60,21 @@ export default function Tickets() {
 
   async function requestReopen(ticketId) {
     const reason = (reopenReasonByTicket[ticketId] || "").trim();
-    if (!reason) return;
+    if (!reason) {
+      setError("Please enter a reason before requesting reopen");
+      return;
+    }
 
     setBusyTicketId(ticketId);
     setError("");
+    setSuccess("");
     try {
       const data = await ticketsApi.requestReopen(ticketId, reason);
       setTickets((current) =>
         current.map((ticket) => (ticket._id === ticketId ? data.ticket : ticket))
       );
       setReopenReasonByTicket((current) => ({ ...current, [ticketId]: "" }));
+      setSuccess("Reopen request sent. Admin will review it.");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -96,6 +102,7 @@ export default function Tickets() {
         </div>
 
         {error && <div className="form-error table-notice">{error}</div>}
+        {success && <div className="form-success table-notice"><span>{success}</span></div>}
         {filteredTickets.length === 0 ? (
           <div className="empty-state">
             <div className="id-tag">NO-TICKETS</div>
@@ -103,12 +110,14 @@ export default function Tickets() {
           </div>
         ) : (
           <div className="ticket-list">
-            {filteredTickets.map((ticket) => {
+            {filteredTickets.map((ticket, index) => {
               const isClosed = ticket.status === "closed";
+              const hasPendingReopen = (ticket.reopenRequests || []).some((request) => request.status === "pending");
               return (
                 <article className="ticket-card" key={ticket._id}>
                   <div className="ticket-card-header">
                     <div>
+                      <span className="ticket-sequence">#{index + 1}</span>
                       <h3>{ticket.title}</h3>
                       <p>{ticket.description}</p>
                     </div>
@@ -139,35 +148,41 @@ export default function Tickets() {
                       )}
                     </div>
                   )}
-                  {isClosed && (
-                    <div className="comment-form">
-                      <input
-                        value={reopenReasonByTicket[ticket._id] || ""}
-                        onChange={(e) =>
-                          setReopenReasonByTicket((current) => ({ ...current, [ticket._id]: e.target.value }))
-                        }
-                        placeholder="Reason to request reopen"
-                      />
-                      <button
-                        className="btn-secondary inline-button"
-                        type="button"
-                        disabled={
-                          busyTicketId === ticket._id ||
-                          (ticket.reopenRequests || []).some((request) => request.status === "pending")
-                        }
-                        onClick={() => requestReopen(ticket._id)}
-                      >
-                        Request reopen
-                      </button>
+                  {isClosed && !hasPendingReopen && (
+                    <div className="reopen-box">
+                      <div>
+                        <strong>Need more help?</strong>
+                        <span>Send a reopen request with a short reason. Admin will review it before the ticket becomes active again.</span>
+                      </div>
+                      <div className="reopen-form">
+                        <input
+                          value={reopenReasonByTicket[ticket._id] || ""}
+                          onChange={(e) =>
+                            setReopenReasonByTicket((current) => ({ ...current, [ticket._id]: e.target.value }))
+                          }
+                          placeholder="Reason to request reopen"
+                        />
+                        <button
+                          className="btn-secondary inline-button"
+                          type="button"
+                          disabled={busyTicketId === ticket._id}
+                          onClick={() => requestReopen(ticket._id)}
+                        >
+                          Request reopen
+                        </button>
+                      </div>
                     </div>
                   )}
                   {(ticket.reopenRequests || []).length > 0 && (
-                    <div className="comment-list">
-                      {ticket.reopenRequests.map((request) => (
-                        <div className="comment-item" key={request._id || request.createdAt}>
-                          <strong>Reopen request: {request.status}</strong>
-                          <span>{request.reason}</span>
-                          {request.adminNote && <span>{request.adminNote}</span>}
+                    <div className="reopen-history">
+                      {(ticket.reopenRequests || []).map((request) => (
+                        <div className={`reopen-history-item ${request.status}`} key={request._id || request.createdAt}>
+                          <div>
+                            <strong>Reopen request</strong>
+                            <span>{request.reason}</span>
+                            {request.adminNote && <small>{request.adminNote}</small>}
+                          </div>
+                          <em>{request.status}</em>
                         </div>
                       ))}
                     </div>

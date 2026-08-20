@@ -2,25 +2,34 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ticketsApi } from "../api/client";
 
-const tabs = [
+const baseTabs = [
+  { key: "all", label: "All", statuses: null },
+  { key: "open", label: "Open", statuses: ["open", "triaged"] },
   { key: "assigned", label: "Assigned", statuses: ["assigned"] },
   { key: "in_progress", label: "In Progress", statuses: ["in_progress"] },
-  { key: "pending_customer", label: "Pending Customer", statuses: ["pending_customer"] },
   { key: "completed", label: "Completed", statuses: ["completed", "resolved"] },
   { key: "closed", label: "Closed", statuses: ["closed"] },
 ];
 
 export default function Assigned() {
   const [tickets, setTickets] = useState([]);
-  const [activeTab, setActiveTab] = useState("assigned");
+  const [activeTab, setActiveTab] = useState("all");
   const [error, setError] = useState("");
 
   useEffect(() => {
     loadTickets();
   }, []);
 
+  const tabs = useMemo(() => {
+    const coveredStatuses = new Set(baseTabs.flatMap((tab) => tab.statuses || []));
+    const uncoveredStatuses = [...new Set(tickets.map((ticket) => ticket.status).filter((status) => status && !coveredStatuses.has(status)))];
+    if (!uncoveredStatuses.length) return baseTabs;
+    return [...baseTabs, { key: "other", label: "Other", statuses: uncoveredStatuses }];
+  }, [tickets]);
+
   const filteredTickets = useMemo(() => {
     const tab = tabs.find((item) => item.key === activeTab);
+    if (!tab?.statuses) return tickets;
     return tickets.filter((ticket) => tab.statuses.includes(ticket.status));
   }, [activeTab, tickets]);
 
@@ -35,6 +44,7 @@ export default function Assigned() {
   }
 
   function countForTab(tab) {
+    if (!tab.statuses) return tickets.length;
     return tickets.filter((ticket) => tab.statuses.includes(ticket.status)).length;
   }
 
@@ -70,10 +80,10 @@ export default function Assigned() {
             <table className="data-table work-table">
               <thead>
                 <tr>
+                  <th>No.</th>
                   <th>Ticket ID</th>
                   <th>Subject</th>
                   <th>Project</th>
-                  <th>Customer</th>
                   <th>Priority</th>
                   <th>SLA</th>
                   <th>AI</th>
@@ -81,15 +91,15 @@ export default function Assigned() {
                 </tr>
               </thead>
               <tbody>
-                {filteredTickets.map((ticket) => (
+                {filteredTickets.map((ticket, index) => (
                   <tr key={ticket._id}>
+                    <td>{index + 1}</td>
                     <td><span className="ticket-id">{shortId(ticket._id)}</span></td>
                     <td>
                       <strong>{ticket.title}</strong>
                       <span className="muted-line">{truncate(ticket.description, 80)}</span>
                     </td>
                     <td>{ticket.projectId?.name || "-"}</td>
-                    <td>{ticket.customerId?.email || "-"}</td>
                     <td><span className="status-pill">{ticket.priority}</span></td>
                     <td>{slaStatus(ticket)}</td>
                     <td><span className={`status-pill ai-status-${ticket.aiAnalysis?.status || "not_started"}`}>{formatStatus(ticket.aiAnalysis?.status || "not_started")}</span></td>

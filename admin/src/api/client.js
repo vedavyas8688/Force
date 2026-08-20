@@ -91,6 +91,11 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  acceptInvite: (payload) =>
+    rawRequest("/users/accept-invite", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   login: (payload) =>
     rawRequest("/auth/login", {
       method: "POST",

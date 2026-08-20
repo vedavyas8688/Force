@@ -20,10 +20,10 @@ function slugify(name) {
 }
 
 /**
- * Registers a brand-new organization AND its first admin user.
- * (Inviting additional users to an existing org is a separate flow.)
+ * Public organization signup creates an approval request only.
+ * The admin cannot log in until a Super Admin approves and sends the invite.
  */
-export async function signup({ organizationName, name, email, password, phone, role = "admin" }) {
+export async function signup({ organizationName, name, email, phone }) {
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) {
     const err = new Error("Email already in use");
@@ -34,32 +34,29 @@ export async function signup({ organizationName, name, email, password, phone, r
   const organization = await Organization.create({
     name: organizationName,
     slug: `${slugify(organizationName)}-${Date.now().toString(36)}`,
+    status: "pending",
   });
-
-  const passwordHash = await User.hashPassword(password);
-  const normalizedRole = ["admin", "developer", "customer"].includes(role) ? role : "admin";
 
   const user = await User.create({
     organizationId: organization._id,
     name,
     email: email.toLowerCase(),
     phone: phone?.trim() || createUniquePhonePlaceholder(),
-    passwordHash,
-    role: normalizedRole,
+    passwordHash: await User.hashPassword(`pending-${Date.now()}-${Math.random()}`),
+    role: "admin",
+    status: "invited",
   });
 
-  if (otpRequiredRoles.has(user.role)) {
-    const otp = await sendLoginOtp(user);
-
-    return {
-      requiresOtp: true,
-      email: user.email,
-      role: user.role,
-      ...(process.env.NODE_ENV !== "production" ? { devOtp: otp } : {}),
-    };
-  }
-
-  return issueTokens(user);
+  return {
+    message: "Organization request submitted. A Super Admin must approve it before login.",
+    organization: {
+      id: organization._id,
+      name: organization.name,
+      slug: organization.slug,
+      status: organization.status,
+    },
+    user: serializeUser(user),
+  };
 }
 
 function createUniquePhonePlaceholder() {
@@ -74,6 +71,13 @@ export async function login({ email, password }) {
   if (!user || user.status !== "active") {
     const err = new Error("Invalid credentials");
     err.status = 401;
+    throw err;
+  }
+
+  const organization = await Organization.findById(user.organizationId).select("status").lean();
+  if (!organization || organization.status !== "active") {
+    const err = new Error("Organization is not approved");
+    err.status = 403;
     throw err;
   }
 
@@ -167,6 +171,15 @@ export async function getCurrentUser({ userId }) {
     const err = new Error("User not found");
     err.status = 404;
     throw err;
+  }
+
+  if (user.role !== "super_admin") {
+    const organization = await Organization.findById(user.organizationId).select("status").lean();
+    if (!organization || organization.status !== "active") {
+      const err = new Error("Organization is not approved");
+      err.status = 403;
+      throw err;
+    }
   }
 
   return serializeUser(user);

@@ -1810,13 +1810,28 @@ button, input {
 .customer-ticket-table .data-grid-row,
 .customer-ticket-row {
   grid-template-columns:
-    minmax(240px, 1.4fr)
-    minmax(90px, 0.55fr)
-    minmax(70px, 0.45fr)
-    minmax(90px, 0.55fr)
-    minmax(100px, 0.65fr)
-    minmax(220px, 1.2fr)
-    minmax(120px, 0.65fr);
+    minmax(220px, 1.25fr)
+    minmax(80px, 0.45fr)
+    minmax(70px, 0.35fr)
+    minmax(90px, 0.45fr)
+    minmax(105px, 0.55fr)
+    minmax(75px, 0.35fr)
+    minmax(150px, 0.9fr)
+    minmax(130px, 0.55fr);
+}
+
+.customer-ticket-row > span {
+  min-width: 0;
+}
+
+.customer-ticket-row > span:nth-last-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-ticket-row .org-view-small {
+  width: 100%;
 }
 
 .customer-ticket-header {

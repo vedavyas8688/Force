@@ -80,6 +80,13 @@ export const authApi = {
 
 export const platformApi = {
   overview: () => apiRequest("/platform/overview"),
+  createOrganizationAdmin: (payload) =>
+    apiRequest("/platform/organization-admins", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  approveOrganization: (id) => apiRequest(`/platform/organizations/${id}/approve`, { method: "PATCH" }),
+  deleteOrganization: (id) => apiRequest(`/platform/organizations/${id}`, { method: "DELETE" }),
 };
 
 export const globalTicketsApi = {

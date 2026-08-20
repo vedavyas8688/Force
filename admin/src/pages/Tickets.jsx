@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { adminTicketsApi, ticketsApi } from "../api/client";
+import { adminTicketsApi, organizationApi, ticketsApi } from "../api/client";
 import { DataTable, DataTablePanel, TablePagination } from "../components/ui/DataTable";
 import { MetricGrid } from "../components/ui/MetricGrid";
 import { SearchBox, Toolbar } from "../components/ui/Toolbar";
@@ -21,7 +21,6 @@ const tabs = [
   { key: "open", label: "Open", statuses: ["open", "triaged"] },
   { key: "assigned", label: "Assigned", statuses: ["assigned"] },
   { key: "in_progress", label: "In Progress", statuses: ["in_progress"] },
-  { key: "pending_customer", label: "Pending Customer", statuses: ["pending_customer"] },
   { key: "completed", label: "Completed", statuses: ["completed", "resolved"] },
   { key: "closed", label: "Closed", statuses: ["closed"] },
 ];
@@ -109,10 +108,14 @@ export default function Tickets() {
     setError("");
     try {
       if (!isSuperAdmin) {
-        const data = await ticketsApi.list();
+        const [data, settings] = await Promise.all([
+          ticketsApi.list(),
+          organizationApi.settings(),
+        ]);
         const organizationOverview = buildTenantOverview({
           tickets: data.tickets || [],
           user,
+          organization: settings.organization,
         });
         setOverview(organizationOverview);
         setSelectedOrgId(organizationOverview.organizations[0].organization._id);
@@ -296,7 +299,7 @@ export default function Tickets() {
             <div>
               <span>Organizations &gt; {selectedOrg.organization.name}</span>
               <h2>{selectedOrg.organization.name}</h2>
-              <p>{titleCase(selectedOrg.organization.plan)} Plan / Created {selectedOrg.organization.createdAt ? new Date(selectedOrg.organization.createdAt).toLocaleDateString() : "-"}</p>
+              <p>Created {selectedOrg.organization.createdAt ? new Date(selectedOrg.organization.createdAt).toLocaleDateString() : "-"}</p>
             </div>
             <div className="workspace-counts">
               <span>{selectedOrg.userCounts.customers} customers</span>
@@ -323,7 +326,7 @@ export default function Tickets() {
               <DataTablePanel>
                 <DataTable
                   className="customer-ticket-table"
-                  columns={["Customer", "Tickets", "Open", "Assigned", "In Progress", "Latest Ticket", "Action"]}
+                  columns={["Customer", "Tickets", "Open", "Assigned", "In Progress", "Closed", "Latest Ticket", "Action"]}
                 >
                   {customers
                     .filter((customer) => {
@@ -343,6 +346,7 @@ export default function Tickets() {
                         <span className="count-blue">{customer.counts.open}</span>
                         <span className="count-orange">{customer.counts.assigned}</span>
                         <span className="count-purple">{customer.counts.inProgress}</span>
+                        <span>{customer.counts.closed}</span>
                         <span>{customer.latestTicket?.title || "-"}</span>
                         <button
                           className="org-view-small"
@@ -485,7 +489,7 @@ function buildCustomerRows(tickets = []) {
     .sort((a, b) => new Date(b.latestTicket?.createdAt || 0) - new Date(a.latestTicket?.createdAt || 0));
 }
 
-function buildTenantOverview({ tickets, user }) {
+function buildTenantOverview({ tickets, user, organization }) {
   const counts = countTickets(tickets);
   const customerIds = new Set(
     tickets.map((ticket) => String(ticket.customerId?._id || ticket.customerId || "")).filter(Boolean)
@@ -499,11 +503,11 @@ function buildTenantOverview({ tickets, user }) {
     organizations: [
       {
         organization: {
-          _id: user?.organizationId || "organization",
-          name: "Your organization",
-          plan: "free",
-          status: "active",
-          createdAt: null,
+          _id: organization?.id || user?.organizationId || "organization",
+          name: organization?.name || user?.organizationName || "Organization",
+          slug: organization?.slug,
+          status: organization?.status || "active",
+          createdAt: organization?.createdAt || null,
         },
         tickets,
         counts,
@@ -524,7 +528,6 @@ function countTickets(tickets = []) {
     open: tickets.filter((ticket) => ["open", "triaged"].includes(ticket.status)).length,
     assigned: tickets.filter((ticket) => ticket.status === "assigned").length,
     inProgress: tickets.filter((ticket) => ticket.status === "in_progress").length,
-    pendingCustomer: tickets.filter((ticket) => ticket.status === "pending_customer").length,
     completed: tickets.filter((ticket) => ["completed", "resolved"].includes(ticket.status)).length,
     closed: tickets.filter((ticket) => ticket.status === "closed").length,
     reopenRequests: tickets.filter((ticket) =>
@@ -539,6 +542,7 @@ function summaryCards(summary = {}) {
     ["Open", "open", BellRing, "blue"],
     ["Assigned", "assigned", UserRoundCheck, "amber"],
     ["In Progress", "inProgress", CircleGauge, "purple"],
+    ["Closed", "closed", Ticket, "slate"],
     ["Reopen Requests", "reopenRequests", BellRing, "red"],
   ].map(([label, key, icon, tone]) => ({ label, value: summary[key] || 0, icon, tone }));
 }

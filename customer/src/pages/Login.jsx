@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
@@ -115,9 +115,7 @@ export default function Login() {
           </button>
         )}
 
-        <div className="auth-switch">
-          New organization? <Link to="/signup">Create one</Link>
-        </div>
+        <div className="auth-switch">Access is created by your organization admin.</div>
       </form>
     </div>
   );

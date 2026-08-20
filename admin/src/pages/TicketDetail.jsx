@@ -173,15 +173,11 @@ function AttachmentList({ attachments = [], onPreview }) {
 
 function AiAnalysisPanel({ analysis }) {
   if (!analysis || analysis.status === "not_started") {
-    return (
-      <section className="detail-section ai-analysis-panel">
-        <h4>AI debug analysis</h4>
-        <p>No AI analysis yet.</p>
-      </section>
-    );
+    return null;
   }
 
   const sections = displaySections(analysis);
+  if (sections.length === 0 && !analysis.error && !analysis.summary) return null;
 
   return (
     <section className="detail-section ai-analysis-panel">

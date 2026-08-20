@@ -4,6 +4,9 @@ import Layout from "./components/Layout.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Tickets from "./pages/Tickets.jsx";
+import Organizations from "./pages/Organizations.jsx";
+import Admins from "./pages/Admins.jsx";
+import Usage from "./pages/Usage.jsx";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -29,6 +32,9 @@ export default function App() {
             }
           >
             <Route path="/" element={<Dashboard />} />
+            <Route path="/organizations" element={<Organizations />} />
+            <Route path="/admins" element={<Admins />} />
+            <Route path="/usage" element={<Usage />} />
             <Route path="/tickets" element={<Tickets />} />
           </Route>
         </Routes>

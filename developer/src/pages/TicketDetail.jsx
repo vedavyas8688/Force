@@ -4,7 +4,6 @@ import { ticketsApi } from "../api/client";
 
 const statusActions = [
   { status: "in_progress", label: "Start work", icon: "play" },
-  { status: "pending_customer", label: "Need customer", icon: "user" },
   { status: "completed", label: "Mark completed", icon: "check" },
   { status: "closed", label: "Close ticket", icon: "lock" },
 ];
@@ -278,7 +277,6 @@ function Icon({ name }) {
     file: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 0v6h6",
     lock: "M7 11V8a5 5 0 0 1 10 0v3m-11 0h12v10H6V11Z",
     play: "M8 5v14l11-7L8 5Z",
-    user: "M20 21a8 8 0 0 0-16 0m8-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z",
     x: "m18 6-12 12M6 6l12 12",
   };
 

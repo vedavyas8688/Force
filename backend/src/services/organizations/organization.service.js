@@ -16,6 +16,7 @@ export async function getOrganizationSettings({ organizationId }) {
       slug: organization.slug,
       plan: organization.plan,
       status: organization.status,
+      createdAt: organization.createdAt,
     },
     assignmentSettings: {
       defaultStrategy:

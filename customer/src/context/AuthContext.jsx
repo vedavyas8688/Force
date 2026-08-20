@@ -42,19 +42,6 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
-  async function signup(payload) {
-    const { res, data } = await authApi.signup(payload);
-    if (!res.ok) throw new Error(data?.error || "Signup failed");
-
-    if (data?.requiresOtp) {
-      return data;
-    }
-
-    setTokens(data);
-    setUser(data.user);
-    return data.user;
-  }
-
   async function logout() {
     try {
       await authApi.logout();
@@ -66,7 +53,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, verifyOtp, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -86,11 +86,6 @@ export class ApiError extends Error {
 }
 
 export const authApi = {
-  signup: (payload) =>
-    rawRequest("/auth/signup", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
   login: (payload) =>
     rawRequest("/auth/login", {
       method: "POST",

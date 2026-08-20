@@ -35,9 +35,7 @@ export function AuthProvider({ children }) {
   async function signup(payload) {
     const { res, data } = await authApi.signup(payload);
     if (!res.ok) throw new Error(data?.error || "Signup failed");
-    setTokens(data);
-    setUser(data.user);
-    return data.user;
+    return data;
   }
 
   async function logout() {

@@ -2,7 +2,7 @@ import { Project } from "../../models/project.model.js";
 import { Ticket } from "../../models/ticket.model.js";
 import { User } from "../../models/user.model.js";
 
-const activeTicketStatuses = ["open", "triaged", "assigned", "in_progress", "pending_customer"];
+const activeTicketStatuses = ["open", "triaged", "assigned", "in_progress"];
 const completedTicketStatuses = ["completed", "resolved"];
 
 export async function getDashboardSummary({ organizationId, user }) {

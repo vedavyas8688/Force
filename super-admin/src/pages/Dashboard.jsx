@@ -1,4 +1,4 @@
-import { Activity, Building2, GitBranch, ServerCog, TicketCheck, Users } from "lucide-react";
+import { Building2, Bot, ServerCog, TicketCheck, UserCog } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { platformApi } from "../api/client.js";
 
@@ -12,17 +12,17 @@ export default function Dashboard() {
 
   const metrics = useMemo(() => [
     { label: "Organizations", value: overview?.summary?.organizations ?? 0, icon: Building2 },
-    { label: "Users", value: overview?.summary?.users ?? 0, icon: Users },
-    { label: "Projects", value: overview?.summary?.projects ?? 0, icon: ServerCog },
+    { label: "Organization Admins", value: overview?.summary?.admins ?? 0, icon: UserCog },
     { label: "Tickets", value: overview?.summary?.tickets ?? 0, icon: TicketCheck },
-    { label: "Git Installs", value: overview?.summary?.gitInstallations ?? 0, icon: GitBranch },
+    { label: "AI Runs", value: overview?.usage?.aiAnalysesTotal ?? 0, icon: Bot },
+    { label: "Active Tenants", value: overview?.summary?.activeOrganizations ?? 0, icon: ServerCog },
   ], [overview]);
 
   return (
     <>
       <div className="page-heading">
         <h1>Platform Overview</h1>
-        <p>Monitor FORCE across all organizations. Organization Git settings stay inside each customer workspace.</p>
+        <p>Compliance-safe monitoring across tenants. Organization operations stay inside each admin workspace.</p>
       </div>
 
       {error && <div className="error-box">{error}</div>}
@@ -42,41 +42,56 @@ export default function Dashboard() {
         })}
       </div>
 
-      <div className="split-grid">
-        <section className="panel">
-          <div className="panel-title">
-            <h2>Organizations</h2>
-            <span>{overview?.organizations?.length || 0} total</span>
+      <section className="panel tenant-health-panel">
+        <div className="panel-title">
+          <div>
+            <h2>Tenant Health</h2>
+            <p className="panel-subtitle">Platform-visible organization status and operational totals.</p>
           </div>
-          <div className="org-table">
-            {(overview?.organizations || []).map((item) => (
-              <div className="org-row" key={item.organization.id}>
-                <div>
-                  <strong>{item.organization.name}</strong>
-                  <small>{item.organization.plan} / {item.organization.status}</small>
-                </div>
-                <span>{item.counts.users} users</span>
-                <span>{item.counts.projects} projects</span>
-                <span>{item.counts.activeTickets} active tickets</span>
-                <span>{item.counts.gitInstallations} Git</span>
-              </div>
-            ))}
-          </div>
-        </section>
+          <span>{overview?.organizations?.length || 0} tenants</span>
+        </div>
 
-        <section className="panel">
-          <div className="panel-title">
-            <h2>System Health</h2>
-            <Activity size={18} />
-          </div>
-          <div className="health-list">
-            <div><span>Redis</span><strong>{overview?.queueHealth?.redis || "checking"}</strong></div>
-            <div><span>Git Queue</span><strong>{overview?.queueHealth?.githubWorkerQueue || "checking"}</strong></div>
-            <div><span>Active Organizations</span><strong>{overview?.summary?.activeOrganizations ?? 0}</strong></div>
-            <div><span>Active Tickets</span><strong>{overview?.summary?.activeTickets ?? 0}</strong></div>
-          </div>
-        </section>
-      </div>
+        <div className="tenant-health-table-wrap">
+          <table className="tenant-health-table">
+            <thead>
+              <tr>
+                <th>Organization</th>
+                <th>Status</th>
+                <th>Admins</th>
+                <th>Projects</th>
+                <th>Active Tickets</th>
+                <th>AI Runs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(overview?.organizations || []).map((item) => (
+                <tr key={item.organization.id}>
+                  <td>
+                    <strong>{item.organization.name}</strong>
+                    <small>{item.organization.slug || item.organization.id}</small>
+                  </td>
+                  <td>
+                    <span className={`status-pill ${item.organization.status || "active"}`}>
+                      {item.organization.status || "active"}
+                    </span>
+                  </td>
+                  <td>{item.counts.admins}</td>
+                  <td>{item.counts.projects}</td>
+                  <td>{item.counts.activeTickets}</td>
+                  <td>{item.counts.aiAnalyses}</td>
+                </tr>
+              ))}
+              {!overview?.organizations?.length ? (
+                <tr>
+                  <td colSpan="6">
+                    <div className="empty-inline">No tenants available yet.</div>
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </>
   );
 }

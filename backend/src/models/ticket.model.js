@@ -59,7 +59,6 @@ const ticketSchema = new mongoose.Schema(
         "triaged",
         "assigned",
         "in_progress",
-        "pending_customer",
         "resolved",
         "completed",
         "closed",

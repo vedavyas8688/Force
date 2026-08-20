@@ -62,7 +62,6 @@ export default function Settings() {
             <div><span>Email</span><strong>{user?.email || "-"}</strong></div>
             <div><span>Role</span><strong>{user?.role || "-"}</strong></div>
             <div><span>Organization</span><strong>{settings?.organization?.name || user?.organizationId || "-"}</strong></div>
-            <div><span>Plan</span><strong>{settings?.organization?.plan || "-"}</strong></div>
           </div>
         </section>
 
