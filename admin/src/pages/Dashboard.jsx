@@ -25,7 +25,7 @@ export default function Dashboard() {
   return (
     <>
       <h1 className="page-title">Organization overview</h1>
-      <p className="page-subtitle">Signed in as {user?.name} - Admin Portal</p>
+      <p className="page-subtitle">Signed in as {user?.name} - Organization Admin</p>
 
       <div className="card-grid">
         {stats.map((stat) => (

@@ -6,8 +6,11 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "worker:github": "node src/workers/github.worker.js",
-    "seed:dev": "node ../scripts/seed-dev.js",
-    "cleanup:demo-users": "node scripts/cleanup-demo-users.js"
+    "seed:dev": "node scripts/seed-dev.js",
+    "cleanup:demo-users": "node scripts/cleanup-demo-users.js",
+    "promote:super-admin": "node scripts/promote-super-admin.js",
+    "create:super-admin": "node scripts/create-super-admin.js",
+    "set:user-role": "node scripts/set-user-role.js"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.3.0",

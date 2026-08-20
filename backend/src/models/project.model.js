@@ -25,6 +25,11 @@ const projectSchema = new mongoose.Schema(
       name: { type: String, default: "" },
       defaultBranch: { type: String, default: "main" },
       installationId: { type: Number, default: null },
+      gitConnectionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "GitConnection",
+        default: null,
+      },
       lastCommitSha: { type: String, default: "" },
       lastSyncedAt: { type: Date, default: null },
       syncStatus: {

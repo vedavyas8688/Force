@@ -1,8 +1,11 @@
 import { createGithubInstallationOctokit } from "../../config/github.js";
 import { CodeFile } from "../../models/code-file.model.js";
 import { Commit } from "../../models/commit.model.js";
+import { GitConnection } from "../../models/git-connection.model.js";
 import { GitHubInstallation } from "../../models/github-installation.model.js";
 import { Project } from "../../models/project.model.js";
+import { decryptSecret } from "./github.service.js";
+import { Octokit } from "@octokit/rest";
 
 const supportedExtensions = new Set([
   ".js", ".jsx", ".ts", ".tsx", ".json", ".css", ".html", ".md", ".mjs", ".cjs",
@@ -28,6 +31,12 @@ export async function processGithubSyncJob(job) {
 export async function syncProjectRepository(projectId) {
   const project = await Project.findById(projectId);
   if (!project?.repository?.fullName || !project.repository.installationId) {
+    if (!project?.repository?.fullName || !project.repository.gitConnectionId) {
+      return { skipped: true, reason: "repository_not_connected" };
+    }
+  }
+
+  if (!project.repository.installationId && !project.repository.gitConnectionId) {
     return { skipped: true, reason: "repository_not_connected" };
   }
 
@@ -60,7 +69,7 @@ async function syncProject(project) {
   await project.save();
 
   try {
-    const octokit = createGithubInstallationOctokit(project.repository.installationId);
+    const octokit = await createProjectOctokit(project);
     const [owner, repo] = project.repository.fullName.split("/");
     const branch = project.repository.defaultBranch || "main";
 
@@ -71,8 +80,9 @@ async function syncProject(project) {
     });
 
     const latestSha = branchData.commit.sha;
+    const treeSha = branchData.commit.commit?.tree?.sha || latestSha;
     await syncCommits({ octokit, project, owner, repo, latestSha });
-    await syncFileTree({ octokit, project, owner, repo, treeSha: latestSha });
+    await syncFileTree({ octokit, project, owner, repo, treeSha });
 
     project.repository.lastCommitSha = latestSha;
     project.repository.lastSyncedAt = new Date();
@@ -87,6 +97,29 @@ async function syncProject(project) {
     await project.save();
     throw err;
   }
+}
+
+async function createProjectOctokit(project) {
+  if (project.repository.installationId) {
+    return createGithubInstallationOctokit(project.repository.installationId);
+  }
+
+  const connection = await GitConnection.findOne({
+    _id: project.repository.gitConnectionId,
+    organizationId: project.organizationId,
+    provider: "github",
+    status: "active",
+  })
+    .select("+encryptedAccessToken")
+    .lean();
+
+  if (!connection) {
+    const err = new Error("GitHub OAuth connection not found");
+    err.status = 404;
+    throw err;
+  }
+
+  return new Octokit({ auth: decryptSecret(connection.encryptedAccessToken) });
 }
 
 async function syncCommits({ octokit, project, owner, repo, latestSha }) {

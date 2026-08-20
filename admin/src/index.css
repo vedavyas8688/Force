@@ -1769,8 +1769,8 @@ button, input {
 }
 
 .github-install-bar {
-  display: grid;
-  grid-template-columns: minmax(280px, 1fr) auto minmax(170px, 240px) auto;
+  display: flex;
+  justify-content: space-between;
   gap: 12px;
   align-items: center;
   padding: 14px;
@@ -1779,13 +1779,31 @@ button, input {
   background: #fbfcff;
 }
 
-.github-install-bar strong,
-.github-install-bar span,
+.github-connection-copy {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.github-service-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: var(--accent);
+}
+
+.github-connection-copy strong,
+.github-connection-copy span,
 .github-install-bar small {
   display: block;
 }
 
-.github-install-bar span {
+.github-connection-copy span {
   margin-top: 3px;
   color: var(--ink-muted);
   font-size: 12px;
@@ -1799,6 +1817,19 @@ button, input {
 
 .github-install-bar a {
   text-decoration: none;
+}
+
+.github-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.github-actions .inline-button,
+.github-actions .btn-danger {
+  min-height: 38px;
 }
 
 .git-project-table .data-grid-row {
@@ -1822,6 +1853,39 @@ button, input {
   color: var(--ink-muted);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.repo-visibility {
+  width: fit-content;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px !important;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px !important;
+  font-weight: 700;
+}
+
+.repo-visibility.public {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.repo-visibility.private {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+@media (max-width: 900px) {
+  .github-install-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .github-actions {
+    justify-content: flex-start;
+  }
 }
 
 .users-table .data-grid-row {

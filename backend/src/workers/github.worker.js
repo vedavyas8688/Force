@@ -4,13 +4,13 @@ import { connectDatabase } from "../config/database.js";
 import { getRedisConnection } from "../config/redis.js";
 import { processGithubSyncJob } from "../services/github/github-sync.worker-service.js";
 
-if (!process.env.REDIS_URL) {
+await connectDatabase();
+const connection = getRedisConnection();
+
+if (!connection) {
   console.error("[github-worker] REDIS_URL is required");
   process.exit(1);
 }
-
-await connectDatabase();
-const connection = getRedisConnection();
 
 const worker = new Worker(
   "github-sync",

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { authApi, getTokens, setTokens, clearTokens } from "../api/client";
+import { authApi, clearTokens, getTokens, setTokens } from "./api/client.js";
 
 const AuthContext = createContext(null);
 
@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
 
     authApi
       .me()
-      .then(({ user }) => setUser(user))
+      .then(({ user: nextUser }) => setUser(nextUser))
       .catch(() => clearTokens())
       .finally(() => setLoading(false));
   }, []);
@@ -24,17 +24,9 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const { res, data } = await authApi.login({ email, password });
     if (!res.ok) throw new Error(data?.error || "Login failed");
-    if (data.user?.role === "super_admin") {
-      throw new Error("Use the Super Admin portal for this account");
+    if (data.user?.role !== "super_admin") {
+      throw new Error("Use a Super Admin account for this portal");
     }
-    setTokens(data);
-    setUser(data.user);
-    return data.user;
-  }
-
-  async function signup(payload) {
-    const { res, data } = await authApi.signup(payload);
-    if (!res.ok) throw new Error(data?.error || "Signup failed");
     setTokens(data);
     setUser(data.user);
     return data.user;
@@ -44,21 +36,21 @@ export function AuthProvider({ children }) {
     try {
       await authApi.logout();
     } catch {
-      // token may already be invalid; clear locally regardless
+      // clear locally regardless
     }
     clearTokens();
     setUser(null);
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used inside AuthProvider");
+  return context;
 }

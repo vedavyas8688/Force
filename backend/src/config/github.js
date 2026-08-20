@@ -15,13 +15,12 @@ export function getGithubConfig() {
   };
 }
 
-export function assertGithubConfigured() {
+export function assertGithubAppConfigured() {
   const config = getGithubConfig();
   const missing = [];
 
   if (!config.appId) missing.push("GITHUB_APP_ID");
   if (!config.privateKey) missing.push("GITHUB_PRIVATE_KEY or GITHUB_PRIVATE_KEY_PATH");
-  if (!config.webhookSecret) missing.push("GITHUB_WEBHOOK_SECRET");
 
   if (missing.length > 0) {
     const err = new Error(`Missing GitHub config: ${missing.join(", ")}`);
@@ -33,7 +32,7 @@ export function assertGithubConfigured() {
 }
 
 export function createGithubAppOctokit() {
-  const config = assertGithubConfigured();
+  const config = assertGithubAppConfigured();
 
   return new Octokit({
     authStrategy: createAppAuth,
@@ -47,7 +46,7 @@ export function createGithubAppOctokit() {
 }
 
 export function createGithubInstallationOctokit(installationId) {
-  const config = assertGithubConfigured();
+  const config = assertGithubAppConfigured();
 
   return new Octokit({
     authStrategy: createAppAuth,

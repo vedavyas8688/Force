@@ -11,7 +11,6 @@ import Projects from "./pages/Projects";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import GitSettings from "./pages/GitSettings";
-import AiSummary from "./pages/AiSummary";
 
 export default function App() {
   return (
@@ -34,8 +33,8 @@ export default function App() {
             <Route path="/projects" element={<Projects />} />
             <Route path="/users" element={<Users />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/integrations" element={<GitSettings />} />
             <Route path="/git-settings" element={<GitSettings />} />
-            <Route path="/ai-summary" element={<AiSummary />} />
           </Route>
         </Routes>
       </AuthProvider>

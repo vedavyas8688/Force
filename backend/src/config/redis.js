@@ -3,10 +3,11 @@ import IORedis from "ioredis";
 let redisConnection;
 
 export function getRedisConnection() {
-  if (!process.env.REDIS_URL) return null;
+  const redisUrl = process.env.REDIS_URL || "";
+  if (!redisUrl || redisUrl.includes("PASTE_")) return null;
 
   if (!redisConnection) {
-    redisConnection = new IORedis(process.env.REDIS_URL, {
+    redisConnection = new IORedis(redisUrl, {
       maxRetriesPerRequest: null,
     });
   }

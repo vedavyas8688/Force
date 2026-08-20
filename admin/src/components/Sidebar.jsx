@@ -1,8 +1,7 @@
 import {
   BriefcaseBusiness,
-  BrainCircuit,
   FolderKanban,
-  GitBranch,
+  Plug,
   LayoutDashboard,
   LifeBuoy,
   LogOut,
@@ -17,13 +16,12 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/tickets", label: "Tickets", icon: TicketCheck },
-  { to: "/users", label: "Users", icon: Users },
-  { to: "/assignments", label: "Assignments", icon: BriefcaseBusiness },
-  { to: "/projects", label: "Projects", icon: FolderKanban },
-  { to: "/git-settings", label: "Git Settings", icon: GitBranch },
-  { to: "/ai-summary", label: "AI Summary", icon: BrainCircuit },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, scope: "all" },
+  { to: "/tickets", label: "Tickets", icon: TicketCheck, scope: "all" },
+  { to: "/users", label: "Users", icon: Users, scope: "organization" },
+  { to: "/assignments", label: "Assignments", icon: BriefcaseBusiness, scope: "organization" },
+  { to: "/projects", label: "Projects", icon: FolderKanban, scope: "organization" },
+  { to: "/integrations", label: "Integrations", icon: Plug, scope: "organization" },
 ];
 
 export default function Sidebar() {
@@ -46,7 +44,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => item.scope === "all" || user?.role !== "super_admin").map((item) => {
           const Icon = item.icon;
           return (
             <div key={item.to}>
@@ -79,7 +77,7 @@ export default function Sidebar() {
           <span className="avatar-chip">{user?.name?.[0]?.toUpperCase() || "A"}</span>
           <div className="sidebar-user-meta">
             <strong>{user?.name || "Admin User"}</strong>
-            <span>Super Admin</span>
+            <span>{user?.role === "super_admin" ? "Super Admin" : "Organization Admin"}</span>
           </div>
         </div>
         <button className="sidebar-logout" onClick={logout}>

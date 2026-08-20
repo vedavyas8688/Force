@@ -195,6 +195,9 @@ export const adminTicketsApi = {
 export const dashboardApi = {
   summary: () => apiRequest("/dashboard/summary"),
 };
+export const platformApi = {
+  overview: () => apiRequest("/platform/overview"),
+};
 export const organizationApi = {
   settings: () => apiRequest("/organizations/settings"),
   updateAssignmentSettings: (payload) =>
@@ -205,6 +208,8 @@ export const organizationApi = {
 };
 
 export const githubApi = {
+  connectUrl: () => apiRequest("/github/connect-url"),
+  oauthConnectUrl: () => apiRequest("/github/oauth/connect-url"),
   status: () => apiRequest("/github/status"),
   saveInstallation: (installationId) =>
     apiRequest("/github/installations", {
@@ -212,6 +217,9 @@ export const githubApi = {
       body: JSON.stringify({ installationId }),
     }),
   repositories: (installationId) => apiRequest(`/github/installations/${installationId}/repositories`),
+  oauthRepositories: (connectionId) => apiRequest(`/github/oauth/connections/${connectionId}/repositories`),
+  disconnectOAuthConnection: (connectionId) =>
+    apiRequest(`/github/oauth/connections/${connectionId}`, { method: "DELETE" }),
   connectProjectRepository: (projectId, payload) =>
     apiRequest(`/github/projects/${projectId}/repository`, {
       method: "PATCH",
@@ -219,6 +227,11 @@ export const githubApi = {
     }),
   disconnectProjectRepository: (projectId) =>
     apiRequest(`/github/projects/${projectId}/repository`, { method: "DELETE" }),
+  connectProjectOAuthRepository: (projectId, payload) =>
+    apiRequest(`/github/projects/${projectId}/oauth-repository`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
 };
 export { getTokens, setTokens, clearTokens };
 

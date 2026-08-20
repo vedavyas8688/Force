@@ -15,7 +15,7 @@ const allowedOrigins = (process.env.CLIENT_ORIGINS || "")
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({
   verify: (req, res, buf) => {
-    if (req.originalUrl === "/api/webhooks/github") {
+    if (req.originalUrl.startsWith("/api/webhooks/github")) {
       req.rawBody = buf;
     }
   },

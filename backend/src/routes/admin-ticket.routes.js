@@ -11,7 +11,7 @@ import { requireRole } from "../middleware/permissions.js";
 
 const router = Router();
 
-router.use(requireAuth, requireRole("admin"));
+router.use(requireAuth, requireRole("super_admin"));
 
 router.get("/overview", globalTicketOverviewHandler);
 router.patch("/:id/status", updateGlobalTicketStatusHandler);

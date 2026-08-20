@@ -47,7 +47,7 @@ export default function Layout() {
               <span>{user?.name?.[0]?.toUpperCase() || "A"}</span>
               <div>
                 <strong>{user?.name || "Admin User"}</strong>
-                <small>Super Admin</small>
+                <small>{user?.role === "super_admin" ? "Super Admin" : "Organization Admin"}</small>
               </div>
               <ChevronDown size={15} />
             </button>
