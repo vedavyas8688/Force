@@ -70,6 +70,12 @@ export async function createTicket({ organizationId, customerId, projectId, titl
     ],
   });
 
+  const defaultStrategy = await getDefaultAssignmentStrategy(organizationId);
+  if (defaultStrategy === "manual") {
+    const unassignedTicket = await Ticket.findById(ticket._id).populate(populateFields);
+    return sanitizeTicketForRole(unassignedTicket.toObject(), "customer");
+  }
+
   try {
     return await autoAssignTicket({
       organizationId,
@@ -364,7 +370,14 @@ export async function autoAssignTicket({ organizationId, ticketId, strategy }) {
     throw err;
   }
 
-  const developer = await chooseDeveloper({ organizationId, strategy });
+  const selectedStrategy = strategy || (await getDefaultAssignmentStrategy(organizationId));
+  if (selectedStrategy === "manual") {
+    const err = new Error("Manual assignment is selected. Choose a developer for this ticket.");
+    err.status = 400;
+    throw err;
+  }
+
+  const developer = await chooseDeveloper({ organizationId, strategy: selectedStrategy });
   return assignTicket({ organizationId, ticketId, developerId: developer._id });
 }
 

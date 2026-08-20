@@ -3,6 +3,7 @@ import { organizationApi, ticketsApi, usersApi } from "../api/client";
 import { DataTable, DataTablePanel } from "../components/ui/DataTable";
 
 const strategies = [
+  { value: "manual", label: "Manual" },
   { value: "round_robin", label: "Round robin" },
   { value: "least_load", label: "Least load" },
   { value: "random", label: "Random" },
@@ -17,6 +18,7 @@ export default function Assignments() {
   const [error, setError] = useState("");
   const [busyTicketId, setBusyTicketId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [selectedDevelopers, setSelectedDevelopers] = useState({});
 
   const developers = useMemo(
     () => users.filter((user) => user.role === "developer" && user.status === "active"),
@@ -27,6 +29,7 @@ export default function Assignments() {
     [tickets]
   );
   const unassignedCount = assignableTickets.filter((ticket) => !ticket.assignedTo).length;
+  const selectedAssignmentCount = Object.values(selectedDevelopers).filter(Boolean).length;
 
   useEffect(() => { loadData(); }, []);
 
@@ -48,7 +51,19 @@ export default function Assignments() {
 
   async function assignManual(ticketId, developerId) {
     if (!developerId) return;
-    await assignWithAction(ticketId, () => ticketsApi.assign(ticketId, developerId));
+    const assigned = await assignWithAction(ticketId, () => ticketsApi.assign(ticketId, developerId));
+    if (!assigned) return;
+    const developer = developers.find((user) => user._id === developerId);
+    setNotice(`Ticket assigned to ${developer?.name || "the selected developer"}`);
+    setSelectedDevelopers((current) => {
+      const next = { ...current };
+      delete next[ticketId];
+      return next;
+    });
+  }
+
+  function selectDeveloper(ticketId, developerId) {
+    setSelectedDevelopers((current) => ({ ...current, [ticketId]: developerId }));
   }
 
   async function assignWithAction(ticketId, action) {
@@ -58,14 +73,38 @@ export default function Assignments() {
     try {
       await action();
       await loadData();
+      return true;
     } catch (err) {
       setError(err.message);
+      return false;
     } finally {
       setBusyTicketId("");
     }
   }
 
   async function assignAllUnassigned() {
+    if (defaultStrategy === "manual") {
+      const assignments = Object.entries(selectedDevelopers).filter(([, developerId]) => developerId);
+      if (assignments.length === 0) {
+        setError("Choose a developer for at least one ticket before assigning.");
+        return;
+      }
+
+      setBulkBusy(true);
+      setError("");
+      setNotice("");
+      try {
+        await Promise.all(assignments.map(([ticketId, developerId]) => ticketsApi.assign(ticketId, developerId)));
+        setNotice(`${assignments.length} ticket${assignments.length === 1 ? "" : "s"} assigned`);
+        setSelectedDevelopers({});
+        await loadData();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setBulkBusy(false);
+      }
+      return;
+    }
     setBulkBusy(true);
     setError("");
     setNotice("");
@@ -93,10 +132,10 @@ export default function Assignments() {
           <button
             className="btn-primary inline-button"
             type="button"
-            disabled={bulkBusy || unassignedCount === 0 || developers.length === 0}
+            disabled={bulkBusy || developers.length === 0 || (defaultStrategy === "manual" ? selectedAssignmentCount === 0 : unassignedCount === 0)}
             onClick={assignAllUnassigned}
           >
-            {bulkBusy ? "Assigning..." : `Assign ${unassignedCount} unassigned`}
+            {bulkBusy ? "Assigning..." : defaultStrategy === "manual" ? `Assign tickets below${selectedAssignmentCount ? ` (${selectedAssignmentCount})` : ""}` : `Assign ${unassignedCount} unassigned`}
           </button>
         </div>
 
@@ -112,17 +151,27 @@ export default function Assignments() {
                 <strong>{ticket.title}</strong>
                 <span><span className="status-pill">{ticket.status}</span></span>
                 <span>{ticket.assignedTo?.email || "Unassigned"}</span>
-                <select
-                  className="table-select"
-                  disabled={busyTicketId === ticket._id || developers.length === 0}
-                  value={ticket.assignedTo?._id || ""}
-                  onChange={(e) => assignManual(ticket._id, e.target.value)}
-                >
-                  <option value="">{developers.length ? "Choose developer" : "No active developers"}</option>
-                  {developers.map((developer) => (
-                    <option key={developer._id} value={developer._id}>{developer.name} - {developer.email}</option>
-                  ))}
-                </select>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <select
+                    className="table-select"
+                    disabled={busyTicketId === ticket._id || bulkBusy || developers.length === 0}
+                    value={selectedDevelopers[ticket._id] || ""}
+                    onChange={(e) => selectDeveloper(ticket._id, e.target.value)}
+                  >
+                    <option value="">{developers.length ? "Choose developer" : "No active developers"}</option>
+                    {developers.map((developer) => (
+                      <option key={developer._id} value={developer._id}>{developer.name} - {developer.email}</option>
+                    ))}
+                  </select>
+                  <button
+                    className="btn-primary inline-button"
+                    type="button"
+                    disabled={busyTicketId === ticket._id || bulkBusy || !selectedDevelopers[ticket._id]}
+                    onClick={() => assignManual(ticket._id, selectedDevelopers[ticket._id])}
+                  >
+                    {busyTicketId === ticket._id ? "Assigning..." : "Assign"}
+                  </button>
+                </div>
               </div>
             ))}
           </DataTable>

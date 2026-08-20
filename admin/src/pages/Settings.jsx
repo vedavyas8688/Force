@@ -3,6 +3,7 @@ import { organizationApi } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 const strategies = [
+  { value: "manual", label: "Manual" },
   { value: "round_robin", label: "Round robin" },
   { value: "least_load", label: "Least load" },
   { value: "random", label: "Random" },

@@ -33,7 +33,7 @@ const organizationSchema = new mongoose.Schema(
     assignmentSettings: {
       defaultStrategy: {
         type: String,
-        enum: ["round_robin", "least_load", "random", "first_available"],
+        enum: ["manual", "round_robin", "least_load", "random", "first_available"],
         default: "round_robin",
       },
     },

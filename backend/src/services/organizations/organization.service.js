@@ -25,7 +25,7 @@ export async function getOrganizationSettings({ organizationId }) {
 }
 
 export async function updateAssignmentSettings({ organizationId, defaultStrategy }) {
-  const allowedStrategies = ["round_robin", "least_load", "random", "first_available"];
+  const allowedStrategies = ["manual", "round_robin", "least_load", "random", "first_available"];
 
   if (!allowedStrategies.includes(defaultStrategy)) {
     const err = new Error("Invalid assignment strategy");
