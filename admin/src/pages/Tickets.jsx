@@ -1,9 +1,7 @@
 import {
   BellRing,
-  CheckCircle2,
   CircleGauge,
   Eye,
-  LockKeyhole,
   MoreVertical,
   Pencil,
   Settings,
@@ -12,11 +10,12 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { adminTicketsApi } from "../api/client";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { adminTicketsApi, ticketsApi } from "../api/client";
 import { DataTable, DataTablePanel, TablePagination } from "../components/ui/DataTable";
 import { MetricGrid } from "../components/ui/MetricGrid";
 import { SearchBox, Toolbar } from "../components/ui/Toolbar";
+import { useAuth } from "../context/AuthContext";
 
 const tabs = [
   { key: "open", label: "Open", statuses: ["open", "triaged"] },
@@ -27,28 +26,26 @@ const tabs = [
   { key: "closed", label: "Closed", statuses: ["closed"] },
 ];
 
-const statuses = ["open", "assigned", "in_progress", "pending_customer", "completed", "closed"];
-
 export default function Tickets() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [overview, setOverview] = useState(null);
   const [selectedOrgId, setSelectedOrgId] = useState("");
-  const [selectedTicketId, setSelectedTicketId] = useState("");
   const [viewMode, setViewMode] = useState("overview");
   const [activeTab, setActiveTab] = useState("open");
-  const [commentByTicket, setCommentByTicket] = useState({});
-  const [noteByTicket, setNoteByTicket] = useState({});
-  const [reviewNoteByRequest, setReviewNoteByRequest] = useState({});
-  const [busyTicketId, setBusyTicketId] = useState("");
   const [error, setError] = useState("");
   const [orgSearch, setOrgSearch] = useState("");
   const [orgStatus, setOrgStatus] = useState("all");
   const [ticketSearch, setTicketSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+
+  const isSuperAdmin = user?.role === "super_admin";
 
   useEffect(() => {
     loadOverview();
-  }, []);
+  }, [isSuperAdmin, user?.organizationId]);
 
   useEffect(() => {
     const search = searchParams.get("search") || "";
@@ -60,7 +57,8 @@ export default function Tickets() {
 
   const organizations = overview?.organizations || [];
   const selectedOrg = organizations.find((item) => item.organization._id === selectedOrgId);
-  const selectedTicket = selectedOrg?.tickets.find((ticket) => ticket._id === selectedTicketId);
+  const customers = useMemo(() => buildCustomerRows(selectedOrg?.tickets || []), [selectedOrg]);
+  const selectedCustomer = customers.find((item) => item.id === selectedCustomerId);
 
   const visibleOrganizations = useMemo(() => {
     const search = orgSearch.trim().toLowerCase();
@@ -78,10 +76,10 @@ export default function Tickets() {
   }, [orgSearch, orgStatus, organizations]);
 
   const filteredTickets = useMemo(() => {
-    if (!selectedOrg) return [];
+    if (!selectedOrg || !selectedCustomer) return [];
     const tab = tabs.find((item) => item.key === activeTab);
     const search = ticketSearch.trim().toLowerCase();
-    return selectedOrg.tickets.filter((ticket) => {
+    return selectedCustomer.tickets.filter((ticket) => {
       const matchesTab = tab.statuses.includes(ticket.status);
       const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter;
       const matchesSearch =
@@ -93,22 +91,35 @@ export default function Tickets() {
         shortId(ticket._id).toLowerCase().includes(search);
       return matchesTab && matchesPriority && matchesSearch;
     });
-  }, [activeTab, priorityFilter, selectedOrg, ticketSearch]);
+  }, [activeTab, priorityFilter, selectedCustomer, selectedOrg, ticketSearch]);
 
   useEffect(() => {
     if (viewMode !== "organization" || !selectedOrg) return;
-    if (selectedOrg.tickets.length === 0) return;
+    if (!selectedCustomer) return;
+    if (selectedCustomer.tickets.length === 0) return;
     if (filteredTickets.length > 0) return;
 
-    const nextTab = firstAvailableTab(selectedOrg.tickets);
+    const nextTab = firstAvailableTab(selectedCustomer.tickets);
     if (nextTab !== activeTab) {
       setActiveTab(nextTab);
     }
-  }, [activeTab, filteredTickets.length, selectedOrg, viewMode]);
+  }, [activeTab, filteredTickets.length, selectedCustomer, viewMode]);
 
   async function loadOverview() {
     setError("");
     try {
+      if (!isSuperAdmin) {
+        const data = await ticketsApi.list();
+        const organizationOverview = buildTenantOverview({
+          tickets: data.tickets || [],
+          user,
+        });
+        setOverview(organizationOverview);
+        setSelectedOrgId(organizationOverview.organizations[0].organization._id);
+        setViewMode("organization");
+        return;
+      }
+
       const data = await adminTicketsApi.overview();
       setOverview(data);
       if (!selectedOrgId && data.organizations?.[0]) {
@@ -117,58 +128,6 @@ export default function Tickets() {
     } catch (err) {
       setError(err.message);
     }
-  }
-
-  async function runTicketAction(ticketId, action) {
-    setBusyTicketId(ticketId);
-    setError("");
-    try {
-      const data = await action();
-      setOverview((current) => replaceTicketInOverview(current, data.ticket));
-      setSelectedTicketId(data.ticket._id);
-      adminTicketsApi.overview().then(setOverview).catch(() => {});
-      return data.ticket;
-    } catch (err) {
-      setError(err.message);
-      return null;
-    } finally {
-      setBusyTicketId("");
-    }
-  }
-
-  async function updateStatus(ticketId, status) {
-    const ticket = await runTicketAction(ticketId, () =>
-      adminTicketsApi.updateStatus(ticketId, status)
-    );
-    if (ticket) setActiveTab(tabForStatus(ticket.status));
-  }
-
-  async function addComment(ticketId) {
-    const body = (commentByTicket[ticketId] || "").trim();
-    if (!body) return;
-    await runTicketAction(ticketId, () => adminTicketsApi.addComment(ticketId, body));
-    setCommentByTicket((current) => ({ ...current, [ticketId]: "" }));
-  }
-
-  async function addInternalNote(ticketId) {
-    const body = (noteByTicket[ticketId] || "").trim();
-    if (!body) return;
-    await runTicketAction(ticketId, () => adminTicketsApi.addInternalNote(ticketId, body));
-    setNoteByTicket((current) => ({ ...current, [ticketId]: "" }));
-  }
-
-  async function reviewReopen(ticketId, requestId, decision) {
-    const key = `${ticketId}:${requestId}`;
-    const ticket = await runTicketAction(ticketId, () =>
-      adminTicketsApi.reviewReopenRequest(
-        ticketId,
-        requestId,
-        decision,
-        reviewNoteByRequest[key] || ""
-      )
-    );
-    if (ticket) setActiveTab(tabForStatus(ticket.status));
-    setReviewNoteByRequest((current) => ({ ...current, [key]: "" }));
   }
 
   function exportTickets() {
@@ -202,7 +161,7 @@ export default function Tickets() {
     <>
       {error && <div className="form-error table-notice">{error}</div>}
 
-      {viewMode === "overview" && (
+      {viewMode === "overview" && isSuperAdmin && (
         <>
           <div className="page-heading-row">
             <div>
@@ -269,7 +228,7 @@ export default function Tickets() {
                     type="button"
                     onClick={() => {
                       setSelectedOrgId(item.organization._id);
-                      setSelectedTicketId("");
+                      setSelectedCustomerId("");
                       setActiveTab(firstAvailableTab(item.tickets));
                       setViewMode("organization");
                     }}
@@ -311,7 +270,7 @@ export default function Tickets() {
                     type="button"
                     onClick={() => {
                       setSelectedOrgId(item.organization._id);
-                      setSelectedTicketId("");
+                      setSelectedCustomerId("");
                       setActiveTab(firstAvailableTab(item.tickets));
                       setViewMode("organization");
                     }}
@@ -328,12 +287,11 @@ export default function Tickets() {
 
       {viewMode === "organization" && selectedOrg && (
         <section className="global-ticket-workspace">
-          <button className="back-button" type="button" onClick={() => {
+          {isSuperAdmin && <button className="back-button" type="button" onClick={() => {
             setViewMode("overview");
-            setSelectedTicketId("");
           }}>
             Back to organizations
-          </button>
+          </button>}
           <div className="workspace-header">
             <div>
               <span>Organizations &gt; {selectedOrg.organization.name}</span>
@@ -353,248 +311,226 @@ export default function Tickets() {
 
           <MetricGrid items={summaryCards(selectedOrg.counts)} className="org-metric-strip" />
 
-          <div className="ticket-tabs">
-            {tabs.map((tab) => (
-              <button
-                className={activeTab === tab.key ? "ticket-tab active" : "ticket-tab"}
-                type="button"
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-              >
-                {tab.label}
-                <span>{countForTab(selectedOrg.tickets, tab)}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="ticket-master-detail">
-            <div className="ticket-filter-bar">
-              <SearchBox
-                placeholder="Search tickets..."
-                value={ticketSearch}
-                onChange={(event) => setTicketSearch(event.target.value)}
-              />
-              <select
-                className="toolbar-select"
-                value={priorityFilter}
-                onChange={(event) => setPriorityFilter(event.target.value)}
-              >
-                <option value="all">All Priority</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
-              <button
-                className="btn-primary inline-button"
-                type="button"
-                disabled={!filteredTickets.length}
-                onClick={exportTickets}
-              >
-                Export
-              </button>
-            </div>
-            <div className="ticket-table-panel">
-              {filteredTickets.length === 0 ? (
-                <div className="empty-state">
-                  <div className="id-tag">NO-TICKETS</div>
-                  <p>No tickets in this status.</p>
-                </div>
-              ) : (
-                <div className="admin-ticket-list">
-                  {filteredTickets.map((ticket) => (
-                    <button
-                      className={selectedTicketId === ticket._id ? "admin-ticket-row active" : "admin-ticket-row"}
-                      type="button"
-                      key={ticket._id}
-                      onClick={() => setSelectedTicketId(ticket._id)}
-                    >
-                      <span className="ticket-id">{shortId(ticket._id)}</span>
-                      <strong>{ticket.title}</strong>
-                      <span>{ticket.customerId?.email || "-"}</span>
-                      <span>{ticket.projectId?.name || "-"}</span>
-                      <span>{ticket.priority}</span>
-                      <span>{ticket.assignedTo?.email || "Unassigned"}</span>
-                      <span>{ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : "-"}</span>
-                      <span>{ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleDateString() : "-"}</span>
-                      <span className={slaClass(ticket)}>{slaStatus(ticket)}</span>
-                      <Eye size={15} />
-                      <Pencil size={15} />
-                      <MoreVertical size={15} />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="ticket-detail-panel">
-              {!selectedTicket ? (
-                <div className="empty-state">
-                  <div className="id-tag">SELECT-TICKET</div>
-                  <p>Select a ticket to open conversation, internal notes, and history.</p>
-                </div>
-              ) : (
-                <TicketDetail
-                  ticket={selectedTicket}
-                  busy={busyTicketId === selectedTicket._id}
-                  comment={commentByTicket[selectedTicket._id] || ""}
-                  note={noteByTicket[selectedTicket._id] || ""}
-                  reviewNotes={reviewNoteByRequest}
-                  onCommentChange={(value) =>
-                    setCommentByTicket((current) => ({ ...current, [selectedTicket._id]: value }))
-                  }
-                  onNoteChange={(value) =>
-                    setNoteByTicket((current) => ({ ...current, [selectedTicket._id]: value }))
-                  }
-                  onReviewNoteChange={(key, value) =>
-                    setReviewNoteByRequest((current) => ({ ...current, [key]: value }))
-                  }
-                  onStatusChange={updateStatus}
-                  onComment={addComment}
-                  onInternalNote={addInternalNote}
-                  onReviewReopen={reviewReopen}
+          {!selectedCustomer ? (
+            <section className="customer-ticket-directory">
+              <Toolbar title="Customers" subtitle="Open a customer to view their tickets and history.">
+                <SearchBox
+                  placeholder="Search customers..."
+                  value={ticketSearch}
+                  onChange={(event) => setTicketSearch(event.target.value)}
                 />
-              )}
-            </div>
-          </div>
+              </Toolbar>
+              <DataTablePanel>
+                <DataTable
+                  className="customer-ticket-table"
+                  columns={["Customer", "Tickets", "Open", "Assigned", "In Progress", "Latest Ticket", "Action"]}
+                >
+                  {customers
+                    .filter((customer) => {
+                      const search = ticketSearch.trim().toLowerCase();
+                      return !search || customer.name.toLowerCase().includes(search) || customer.email.toLowerCase().includes(search);
+                    })
+                    .map((customer) => (
+                      <div className="data-grid-row customer-ticket-row" key={customer.id}>
+                        <div className="org-name-cell">
+                          <div className="org-logo compact-logo">{customer.name?.[0]?.toUpperCase() || "C"}</div>
+                          <div>
+                            <strong>{customer.name}</strong>
+                            <small>{customer.email}</small>
+                          </div>
+                        </div>
+                        <span><strong>{customer.counts.total}</strong><small> Tickets</small></span>
+                        <span className="count-blue">{customer.counts.open}</span>
+                        <span className="count-orange">{customer.counts.assigned}</span>
+                        <span className="count-purple">{customer.counts.inProgress}</span>
+                        <span>{customer.latestTicket?.title || "-"}</span>
+                        <button
+                          className="org-view-small"
+                          type="button"
+                          onClick={() => {
+                            setSelectedCustomerId(customer.id);
+                            setActiveTab(firstAvailableTab(customer.tickets));
+                            setTicketSearch("");
+                          }}
+                        >
+                          View tickets
+                        </button>
+                      </div>
+                    ))}
+                </DataTable>
+                {customers.length === 0 && (
+                  <div className="empty-state">
+                    <div className="id-tag">NO-CUSTOMERS</div>
+                    <p>No customers have tickets yet.</p>
+                  </div>
+                )}
+              </DataTablePanel>
+            </section>
+          ) : (
+            <section className="customer-ticket-view">
+              <div className="customer-ticket-header">
+                <button className="back-button" type="button" onClick={() => setSelectedCustomerId("")}>
+                  Back to customers
+                </button>
+                <div>
+                  <h3>{selectedCustomer.name}</h3>
+                  <p>{selectedCustomer.email} / {selectedCustomer.counts.total} tickets</p>
+                </div>
+              </div>
+
+              <div className="ticket-tabs">
+                {tabs.map((tab) => (
+                  <button
+                    className={activeTab === tab.key ? "ticket-tab active" : "ticket-tab"}
+                    type="button"
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                  >
+                    {tab.label}
+                    <span>{countForTab(selectedCustomer.tickets, tab)}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="ticket-master-detail org-admin-ticket-layout">
+                <div className="ticket-filter-bar">
+                  <SearchBox
+                    placeholder="Search tickets..."
+                    value={ticketSearch}
+                    onChange={(event) => setTicketSearch(event.target.value)}
+                  />
+                  <select
+                    className="toolbar-select"
+                    value={priorityFilter}
+                    onChange={(event) => setPriorityFilter(event.target.value)}
+                  >
+                    <option value="all">All Priority</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                <div className="ticket-table-panel">
+                  {filteredTickets.length === 0 ? (
+                    <div className="empty-state">
+                      <div className="id-tag">NO-TICKETS</div>
+                      <p>No tickets in this status.</p>
+                    </div>
+                  ) : (
+                    <div className="admin-ticket-list">
+                      <div className="admin-ticket-row ticket-row-header customer-ticket-list-header">
+                        <span>No.</span>
+                        <span>Ticket ID</span>
+                        <span>Subject</span>
+                        <span>Project</span>
+                        <span>Agent</span>
+                        <span>Actions</span>
+                      </div>
+                      {filteredTickets.map((ticket, index) => (
+                        <button
+                          className="admin-ticket-row customer-ticket-list-row"
+                          type="button"
+                          key={ticket._id}
+                          onClick={() => navigate(`/tickets/${ticket._id}`)}
+                        >
+                          <span>{index + 1}</span>
+                          <span className="ticket-id">{shortId(ticket._id)}</span>
+                          <strong>{limitText(ticket.title, 52)}</strong>
+                          <span>{ticket.projectId?.name || "-"}</span>
+                          <span>{ticket.assignedTo?.email || "Unassigned"}</span>
+                          <span className="ticket-row-actions">
+                            <Eye size={15} />
+                            View
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
         </section>
       )}
     </>
   );
 }
 
-function TicketDetail({
-  ticket,
-  busy,
-  comment,
-  note,
-  reviewNotes,
-  onCommentChange,
-  onNoteChange,
-  onReviewNoteChange,
-  onStatusChange,
-  onComment,
-  onInternalNote,
-  onReviewReopen,
-}) {
-  const isClosed = ticket.status === "closed";
-  const pendingReopens = (ticket.reopenRequests || []).filter((request) => request.status === "pending");
+function buildCustomerRows(tickets = []) {
+  const rows = new Map();
 
-  return (
-    <article className="ticket-detail-card">
-      <div className="ticket-card-header">
-        <div>
-          <span className="ticket-id">{shortId(ticket._id)}</span>
-          <h3>{ticket.title}</h3>
-          <p>{ticket.description}</p>
-        </div>
-        <span className="status-pill">{ticket.status}</span>
-      </div>
+  for (const ticket of tickets) {
+    const id = String(ticket.customerId?._id || ticket.customerId || "unknown");
+    if (!rows.has(id)) {
+      rows.set(id, {
+        id,
+        name: ticket.customerId?.name || ticket.customerId?.email || "Unknown customer",
+        email: ticket.customerId?.email || "-",
+        tickets: [],
+        latestTicket: null,
+        counts: null,
+      });
+    }
 
-      <div className="ticket-meta">
-        <span>Customer: {ticket.customerId?.email || "-"}</span>
-        <span>Project: {ticket.projectId?.name || "-"}</span>
-        <span>Priority: {ticket.priority}</span>
-        <span>Agent: {ticket.assignedTo?.email || "Unassigned"}</span>
-        <span>Team: {ticket.assignedTeam || "-"}</span>
-        <span>SLA: {slaStatus(ticket)}</span>
-        <span>Created: {ticket.createdAt ? new Date(ticket.createdAt).toLocaleString() : "-"}</span>
-        <span>Updated: {ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleString() : "-"}</span>
-        {ticket.completedAt && <span>Completed: {new Date(ticket.completedAt).toLocaleString()}</span>}
-        {ticket.closedAt && <span>Closed: {new Date(ticket.closedAt).toLocaleString()}</span>}
-      </div>
+    const row = rows.get(id);
+    row.tickets.push(ticket);
+    if (!row.latestTicket || new Date(ticket.createdAt || 0) > new Date(row.latestTicket.createdAt || 0)) {
+      row.latestTicket = ticket;
+    }
+  }
 
-      <div className="ticket-actions">
-        <select
-          className="table-select"
-          disabled={busy || isClosed}
-          value={ticket.status === "resolved" ? "completed" : ticket.status}
-          onChange={(e) => onStatusChange(ticket._id, e.target.value)}
-        >
-          {statuses.map((status) => (
-            <option key={status} value={status}>{status}</option>
-          ))}
-        </select>
-      </div>
+  return Array.from(rows.values())
+    .map((row) => ({ ...row, counts: countTickets(row.tickets) }))
+    .sort((a, b) => new Date(b.latestTicket?.createdAt || 0) - new Date(a.latestTicket?.createdAt || 0));
+}
 
-      {pendingReopens.length > 0 && (
-        <section className="detail-section">
-          <h4>Reopen requests</h4>
-          {pendingReopens.map((request) => {
-            const key = `${ticket._id}:${request._id}`;
-            return (
-              <div className="comment-item" key={request._id}>
-                <strong>{request.requestedBy?.email || "Customer"}</strong>
-                <span>{request.reason}</span>
-                <div className="comment-form reopen-form">
-                  <input
-                    value={reviewNotes[key] || ""}
-                    onChange={(e) => onReviewNoteChange(key, e.target.value)}
-                    placeholder="Admin review note"
-                  />
-                  <button className="btn-primary inline-button" type="button" disabled={busy} onClick={() => onReviewReopen(ticket._id, request._id, "approved")}>Approve</button>
-                  <button className="btn-danger" type="button" disabled={busy} onClick={() => onReviewReopen(ticket._id, request._id, "rejected")}>Reject</button>
-                </div>
-              </div>
-            );
-          })}
-        </section>
-      )}
-
-      <section className="detail-section">
-        <h4>Customer conversation</h4>
-        {(ticket.comments || []).length === 0 ? (
-          <p>{isClosed ? "Closed conversation is read-only." : "No conversation yet."}</p>
-        ) : (
-          ticket.comments.map((item) => (
-            <div className="comment-item" key={item._id || item.createdAt}>
-              <strong>{item.authorId?.email || item.authorId?.name || "User"}</strong>
-              <span>{item.body}</span>
-            </div>
-          ))
-        )}
-        {!isClosed && (
-          <div className="comment-form">
-            <input value={comment} onChange={(e) => onCommentChange(e.target.value)} placeholder="Reply to customer" />
-            <button className="btn-primary inline-button" type="button" disabled={busy} onClick={() => onComment(ticket._id)}>Reply</button>
-          </div>
-        )}
-      </section>
-
-      <section className="detail-section internal-note-list">
-        <h4>Internal notes</h4>
-        {(ticket.internalNotes || []).length === 0 ? (
-          <p>No internal notes yet.</p>
-        ) : (
-          ticket.internalNotes.map((item) => (
-            <div className="comment-item" key={item._id || item.createdAt}>
-              <strong>{item.authorId?.email || item.authorId?.name || "Team note"}</strong>
-              <span>{item.body}</span>
-            </div>
-          ))
-        )}
-        {!isClosed && (
-          <div className="comment-form">
-            <input value={note} onChange={(e) => onNoteChange(e.target.value)} placeholder="Add admin/agent-only note" />
-            <button className="btn-secondary inline-button" type="button" disabled={busy} onClick={() => onInternalNote(ticket._id)}>Internal note</button>
-          </div>
-        )}
-      </section>
-
-      <section className="detail-section">
-        <h4>Activity history</h4>
-        <div className="activity-list">
-          {(ticket.activity || []).slice().reverse().map((item) => (
-            <div key={item._id || item.createdAt}>
-              <strong>{item.action.replaceAll("_", " ")}</strong>
-              <span>{item.actorId?.email || item.actorId?.name || "System"}</span>
-              <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-    </article>
+function buildTenantOverview({ tickets, user }) {
+  const counts = countTickets(tickets);
+  const customerIds = new Set(
+    tickets.map((ticket) => String(ticket.customerId?._id || ticket.customerId || "")).filter(Boolean)
   );
+  const developerIds = new Set(
+    tickets.map((ticket) => String(ticket.assignedTo?._id || ticket.assignedTo || "")).filter(Boolean)
+  );
+
+  return {
+    summary: counts,
+    organizations: [
+      {
+        organization: {
+          _id: user?.organizationId || "organization",
+          name: "Your organization",
+          plan: "free",
+          status: "active",
+          createdAt: null,
+        },
+        tickets,
+        counts,
+        activeTickets: tickets.filter((ticket) => !["completed", "resolved", "closed"].includes(ticket.status)).length,
+        userCounts: {
+          total: Math.max(customerIds.size + developerIds.size + 1, 1),
+          customers: customerIds.size,
+          developers: developerIds.size,
+        },
+      },
+    ],
+  };
+}
+
+function countTickets(tickets = []) {
+  return {
+    total: tickets.length,
+    open: tickets.filter((ticket) => ["open", "triaged"].includes(ticket.status)).length,
+    assigned: tickets.filter((ticket) => ticket.status === "assigned").length,
+    inProgress: tickets.filter((ticket) => ticket.status === "in_progress").length,
+    pendingCustomer: tickets.filter((ticket) => ticket.status === "pending_customer").length,
+    completed: tickets.filter((ticket) => ["completed", "resolved"].includes(ticket.status)).length,
+    closed: tickets.filter((ticket) => ticket.status === "closed").length,
+    reopenRequests: tickets.filter((ticket) =>
+      (ticket.reopenRequests || []).some((request) => request.status === "pending")
+    ).length,
+  };
 }
 
 function summaryCards(summary = {}) {
@@ -631,12 +567,6 @@ function firstAvailableTab(tickets = []) {
   return tabs.find((tab) => countForTab(tickets, tab) > 0)?.key || "open";
 }
 
-function tabForStatus(status) {
-  if (["open", "triaged"].includes(status)) return "open";
-  if (status === "resolved") return "completed";
-  return status;
-}
-
 function shortId(id) {
   return `T-${String(id).slice(-6).toUpperCase()}`;
 }
@@ -662,21 +592,7 @@ function csvCell(value) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
 }
 
-function replaceTicketInOverview(overview, updatedTicket) {
-  if (!overview) return overview;
-
-  const organizations = overview.organizations.map((item) => {
-    if (String(item.organization._id) !== String(updatedTicket.organizationId)) {
-      return item;
-    }
-
-    return {
-      ...item,
-      tickets: item.tickets.map((ticket) =>
-        ticket._id === updatedTicket._id ? updatedTicket : ticket
-      ),
-    };
-  });
-
-  return { ...overview, organizations };
+function limitText(value = "", max = 50) {
+  const text = String(value || "");
+  return text.length > max ? `${text.slice(0, max - 1)}...` : text;
 }

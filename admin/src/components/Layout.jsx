@@ -1,15 +1,15 @@
-import { Bell, ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import NotificationBell from "./NotificationBell";
 import { useAuth } from "../context/AuthContext";
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [alertsOpen, setAlertsOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
 
   function submitSearch(event) {
@@ -32,17 +32,7 @@ export default function Layout() {
             />
           </form>
           <div className="topbar-actions">
-            <button className="notification-button" type="button" onClick={() => setAlertsOpen((value) => !value)}>
-              <Bell size={18} />
-              <span>5</span>
-            </button>
-            {alertsOpen && (
-              <div className="topbar-menu alert-menu">
-                <strong>Notifications</strong>
-                <p>Review reopen requests and SLA alerts from the Tickets page.</p>
-                <button type="button" onClick={() => navigate("/tickets")}>Open tickets</button>
-              </div>
-            )}
+            <NotificationBell />
             <button className="topbar-user" type="button" onClick={() => setUserOpen((value) => !value)}>
               <span>{user?.name?.[0]?.toUpperCase() || "A"}</span>
               <div>

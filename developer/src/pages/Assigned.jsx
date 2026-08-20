@@ -20,8 +20,6 @@ const statusActions = [
 export default function Assigned() {
   const [tickets, setTickets] = useState([]);
   const [activeTab, setActiveTab] = useState("assigned");
-  const [commentByTicket, setCommentByTicket] = useState({});
-  const [noteByTicket, setNoteByTicket] = useState({});
   const [error, setError] = useState("");
   const [busyTicketId, setBusyTicketId] = useState("");
 
@@ -69,37 +67,14 @@ export default function Assigned() {
     }
   }
 
-  async function addComment(ticketId) {
-    const body = (commentByTicket[ticketId] || "").trim();
-    if (!body) return;
-
+  async function analyzeTicket(ticketId) {
     setBusyTicketId(ticketId);
     setError("");
     try {
-      const data = await ticketsApi.addComment(ticketId, body);
+      const data = await ticketsApi.analyze(ticketId);
       setTickets((current) =>
         current.map((ticket) => (ticket._id === ticketId ? data.ticket : ticket))
       );
-      setCommentByTicket((current) => ({ ...current, [ticketId]: "" }));
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusyTicketId("");
-    }
-  }
-
-  async function addInternalNote(ticketId) {
-    const body = (noteByTicket[ticketId] || "").trim();
-    if (!body) return;
-
-    setBusyTicketId(ticketId);
-    setError("");
-    try {
-      const data = await ticketsApi.addInternalNote(ticketId, body);
-      setTickets((current) =>
-        current.map((ticket) => (ticket._id === ticketId ? data.ticket : ticket))
-      );
-      setNoteByTicket((current) => ({ ...current, [ticketId]: "" }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -156,6 +131,7 @@ export default function Assigned() {
                     {ticket.completedAt && <span>Completed: {new Date(ticket.completedAt).toLocaleString()}</span>}
                     {ticket.closedAt && <span>Closed: {new Date(ticket.closedAt).toLocaleString()}</span>}
                   </div>
+                  <AttachmentList attachments={ticket.attachments} />
                   {!isClosed && (
                     <div className="status-action-row">
                       {statusActions.map((action) => (
@@ -173,79 +149,17 @@ export default function Assigned() {
                           {action.label}
                         </button>
                       ))}
-                    </div>
-                  )}
-                  {!isClosed && (
-                    <div className="comment-form">
-                      <input
-                        value={noteByTicket[ticket._id] || ""}
-                        onChange={(e) =>
-                          setNoteByTicket((current) => ({ ...current, [ticket._id]: e.target.value }))
-                        }
-                        placeholder="Add internal note"
-                      />
                       <button
-                        className="btn-secondary inline-button"
+                        className="btn-secondary compact-action"
                         type="button"
                         disabled={busyTicketId === ticket._id}
-                        onClick={() => addInternalNote(ticket._id)}
+                        onClick={() => analyzeTicket(ticket._id)}
                       >
-                        Internal note
+                        Run AI analysis
                       </button>
                     </div>
                   )}
-                  {(ticket.internalNotes || []).length > 0 && (
-                    <div className="comment-list internal-note-list">
-                      {ticket.internalNotes.map((note) => (
-                        <div className="comment-item" key={note._id || note.createdAt}>
-                          <strong>{note.authorId?.name || note.authorId?.email || "Team note"}</strong>
-                          <span>{note.body}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="comment-list">
-                    {(ticket.comments || []).length === 0 ? (
-                      <p>{isClosed ? "Closed with no comments." : "No comments yet."}</p>
-                    ) : (
-                      ticket.comments.map((comment) => (
-                        <div className="comment-item" key={comment._id || comment.createdAt}>
-                          <strong>{comment.authorId?.name || comment.authorId?.email || "User"}</strong>
-                          <span>{comment.body}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  {!isClosed && (
-                    <div className="comment-form">
-                      <input
-                        value={commentByTicket[ticket._id] || ""}
-                        onChange={(e) =>
-                          setCommentByTicket((current) => ({ ...current, [ticket._id]: e.target.value }))
-                        }
-                        placeholder="Add progress note"
-                      />
-                      <button
-                        className="btn-primary inline-button"
-                        type="button"
-                        disabled={busyTicketId === ticket._id}
-                        onClick={() => addComment(ticket._id)}
-                      >
-                        Comment
-                      </button>
-                    </div>
-                  )}
-                  {(ticket.activity || []).length > 0 && (
-                    <div className="activity-list">
-                      {ticket.activity.slice().reverse().map((item) => (
-                        <div key={item._id || item.createdAt}>
-                          <strong>{item.action.replaceAll("_", " ")}</strong>
-                          <span>{item.actorId?.email || item.actorId?.name || "System"}</span>
-                          <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <AiAnalysisPanel analysis={ticket.aiAnalysis} />
                 </article>
               );
             })}
@@ -253,5 +167,106 @@ export default function Assigned() {
         )}
       </div>
     </>
+  );
+}
+
+function AiAnalysisPanel({ analysis }) {
+  if (!analysis || analysis.status === "not_started") {
+    return (
+      <section className="ai-analysis-panel">
+        <div className="ai-section-header">
+          <h4>AI debug analysis</h4>
+          <span className="status-pill">not started</span>
+        </div>
+        <p>No AI analysis yet.</p>
+      </section>
+    );
+  }
+
+  const sections = displaySections(analysis);
+
+  return (
+    <section className="ai-analysis-panel">
+      <div className="ai-section-header">
+        <div>
+          <h4>{analysis.title || "AI debug analysis"}</h4>
+          {analysis.summary && <p>{analysis.summary}</p>}
+        </div>
+        <span className={`status-pill ai-status-${analysis.status}`}>{analysis.status}</span>
+      </div>
+
+      <div className="ai-analysis-document">
+        {sections.map((section, index) => (
+          <article className="ai-analysis-section" key={`${section.title}-${index}`}>
+            {section.title && <h5>{section.title}</h5>}
+            {section.body && <p>{section.body}</p>}
+            {section.items?.length > 0 && (
+              <ul>
+                {section.items.map((item, itemIndex) => (
+                  <li key={`${section.title}-${itemIndex}`}>{item}</li>
+                ))}
+              </ul>
+            )}
+            {section.code && <pre><code>{section.code}</code></pre>}
+          </article>
+        ))}
+      </div>
+
+      <div className="ai-analysis-footer">
+        {analysis.provider && <span>{analysis.provider}{analysis.model ? ` / ${analysis.model}` : ""}</span>}
+        {Number.isFinite(Number(analysis.confidence)) && Number(analysis.confidence) > 0 && (
+          <span>{Math.round(Number(analysis.confidence) * 100)}%</span>
+        )}
+        {analysis.analyzedAt && <span>{new Date(analysis.analyzedAt).toLocaleString()}</span>}
+      </div>
+      {analysis.error && <p className="ai-error">{analysis.error}</p>}
+    </section>
+  );
+}
+
+function displaySections(analysis) {
+  if (Array.isArray(analysis.sections) && analysis.sections.length > 0) {
+    return analysis.sections.filter((section) =>
+      section?.title || section?.body || section?.code || section?.items?.length
+    );
+  }
+
+  return [
+    analysis.problem && { title: "Problem", body: analysis.problem, items: [] },
+    analysis.likelyRootCause && { title: "Likely root cause", body: analysis.likelyRootCause, items: [] },
+    analysis.developerBrief && { title: "Developer brief", body: analysis.developerBrief, items: [] },
+    analysis.investigationSteps?.length && { title: "Investigation steps", body: "", items: analysis.investigationSteps },
+    analysis.suggestedFixes?.length && { title: "Suggested fixes", body: "", items: analysis.suggestedFixes },
+    analysis.validationSteps?.length && { title: "Validation steps", body: "", items: analysis.validationSteps },
+    analysis.suspectedFiles?.length && {
+      title: "Suspected files",
+      body: "",
+      items: analysis.suspectedFiles.map((file) =>
+        `${file.path || "Unknown file"}${file.lineStart || file.lineEnd ? ` lines ${file.lineStart || "?"}-${file.lineEnd || file.lineStart || "?"}` : ""}${file.reason ? ` - ${file.reason}` : ""}`
+      ),
+    },
+  ].filter(Boolean);
+}
+
+function AttachmentList({ attachments = [] }) {
+  if (!attachments.length) return null;
+
+  return (
+    <div className="attachment-list">
+      <strong>Attachments</strong>
+      <div>
+        {attachments.map((attachment, index) => (
+          <a
+            href={attachment.dataUrl || undefined}
+            target="_blank"
+            rel="noreferrer"
+            className="attachment-chip"
+            key={`${attachment.name}-${index}`}
+          >
+            {attachment.type?.startsWith("image/") ? "Image" : "File"}: {attachment.name}
+          </a>
+        ))}
+      </div>
+    </div>
   );
 }

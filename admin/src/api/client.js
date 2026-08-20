@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+export const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 function getTokens() {
   return {
@@ -153,16 +153,7 @@ export const ticketsApi = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
-  addComment: (id, body) =>
-    apiRequest(`/tickets/${id}/comments`, {
-      method: "POST",
-      body: JSON.stringify({ body }),
-    }),
-  addInternalNote: (id, body) =>
-    apiRequest(`/tickets/${id}/internal-notes`, {
-      method: "POST",
-      body: JSON.stringify({ body }),
-    }),
+  analyze: (id) => apiRequest(`/tickets/${id}/ai/analyze`, { method: "POST" }),
   reviewReopenRequest: (id, requestId, decision, adminNote) =>
     apiRequest(`/tickets/${id}/reopen-requests/${requestId}`, {
       method: "PATCH",
@@ -171,21 +162,13 @@ export const ticketsApi = {
 };
 export const adminTicketsApi = {
   overview: () => apiRequest("/admin/tickets/overview"),
+  get: (id) => apiRequest(`/admin/tickets/${id}`),
   updateStatus: (id, status) =>
     apiRequest(`/admin/tickets/${id}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
-  addComment: (id, body) =>
-    apiRequest(`/admin/tickets/${id}/comments`, {
-      method: "POST",
-      body: JSON.stringify({ body }),
-    }),
-  addInternalNote: (id, body) =>
-    apiRequest(`/admin/tickets/${id}/internal-notes`, {
-      method: "POST",
-      body: JSON.stringify({ body }),
-    }),
+  analyze: (id) => apiRequest(`/tickets/${id}/ai/analyze`, { method: "POST" }),
   reviewReopenRequest: (id, requestId, decision, adminNote) =>
     apiRequest(`/admin/tickets/${id}/reopen-requests/${requestId}`, {
       method: "PATCH",
@@ -194,6 +177,11 @@ export const adminTicketsApi = {
 };
 export const dashboardApi = {
   summary: () => apiRequest("/dashboard/summary"),
+};
+export const notificationsApi = {
+  list: () => apiRequest("/notifications"),
+  markRead: (id) => apiRequest(`/notifications/${id}/read`, { method: "PATCH" }),
+  markAllRead: () => apiRequest("/notifications/read-all", { method: "PATCH" }),
 };
 export const platformApi = {
   overview: () => apiRequest("/platform/overview"),

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+export const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 function getTokens() {
   return {
@@ -137,19 +137,15 @@ export const ticketsApi = {
       method: "PATCH",
       body: JSON.stringify({ status }),
     }),
-  addComment: (id, body) =>
-    apiRequest(`/tickets/${id}/comments`, {
-      method: "POST",
-      body: JSON.stringify({ body }),
-    }),
-  addInternalNote: (id, body) =>
-    apiRequest(`/tickets/${id}/internal-notes`, {
-      method: "POST",
-      body: JSON.stringify({ body }),
-    }),
+  analyze: (id) => apiRequest(`/tickets/${id}/ai/analyze`, { method: "POST" }),
 };
 export const dashboardApi = {
   summary: () => apiRequest("/dashboard/summary"),
+};
+export const notificationsApi = {
+  list: () => apiRequest("/notifications"),
+  markRead: (id) => apiRequest(`/notifications/${id}/read`, { method: "PATCH" }),
+  markAllRead: () => apiRequest("/notifications/read-all", { method: "PATCH" }),
 };
 export { getTokens, setTokens, clearTokens };
 

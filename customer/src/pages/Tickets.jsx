@@ -13,7 +13,6 @@ const tabs = [
 export default function Tickets() {
   const [tickets, setTickets] = useState([]);
   const [activeTab, setActiveTab] = useState("open");
-  const [commentByTicket, setCommentByTicket] = useState({});
   const [reopenReasonByTicket, setReopenReasonByTicket] = useState({});
   const [busyTicketId, setBusyTicketId] = useState("");
   const [error, setError] = useState("");
@@ -39,25 +38,6 @@ export default function Tickets() {
       setTickets(data.tickets || []);
     } catch (err) {
       setError(err.message);
-    }
-  }
-
-  async function addComment(ticketId) {
-    const body = (commentByTicket[ticketId] || "").trim();
-    if (!body) return;
-
-    setBusyTicketId(ticketId);
-    setError("");
-    try {
-      const data = await ticketsApi.addComment(ticketId, body);
-      setTickets((current) =>
-        current.map((ticket) => (ticket._id === ticketId ? data.ticket : ticket))
-      );
-      setCommentByTicket((current) => ({ ...current, [ticketId]: "" }));
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusyTicketId("");
     }
   }
 
@@ -144,6 +124,7 @@ export default function Tickets() {
                     {ticket.completedAt && <span>Completed: {new Date(ticket.completedAt).toLocaleString()}</span>}
                     {ticket.closedAt && <span>Closed: {new Date(ticket.closedAt).toLocaleString()}</span>}
                   </div>
+                  <AttachmentList attachments={ticket.attachments} />
                   {(["completed", "resolved"].includes(ticket.status) || isClosed) && (
                     <div className="status-action-row">
                       {["completed", "resolved"].includes(ticket.status) && (
@@ -191,48 +172,6 @@ export default function Tickets() {
                       ))}
                     </div>
                   )}
-                  <div className="comment-list">
-                    {(ticket.comments || []).length === 0 ? (
-                      <p>{isClosed ? "Closed with no comments." : "No comments yet."}</p>
-                    ) : (
-                      ticket.comments.map((comment) => (
-                        <div className="comment-item" key={comment._id || comment.createdAt}>
-                          <strong>{comment.authorId?.name || comment.authorId?.email || "User"}</strong>
-                          <span>{comment.body}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  {!isClosed && (
-                    <div className="comment-form">
-                      <input
-                        value={commentByTicket[ticket._id] || ""}
-                        onChange={(e) =>
-                          setCommentByTicket((current) => ({ ...current, [ticket._id]: e.target.value }))
-                        }
-                        placeholder="Add a reply"
-                      />
-                      <button
-                        className="btn-primary inline-button"
-                        type="button"
-                        disabled={busyTicketId === ticket._id}
-                        onClick={() => addComment(ticket._id)}
-                      >
-                        Reply
-                      </button>
-                    </div>
-                  )}
-                  {(ticket.activity || []).length > 0 && (
-                    <div className="activity-list">
-                      {ticket.activity.slice().reverse().map((item) => (
-                        <div key={item._id || item.createdAt}>
-                          <strong>{item.action.replaceAll("_", " ")}</strong>
-                          <span>{item.actorId?.email || item.actorId?.name || "System"}</span>
-                          <span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </article>
               );
             })}
@@ -240,5 +179,28 @@ export default function Tickets() {
         )}
       </div>
     </>
+  );
+}
+
+function AttachmentList({ attachments = [] }) {
+  if (!attachments.length) return null;
+
+  return (
+    <div className="attachment-list">
+      <strong>Attachments</strong>
+      <div>
+        {attachments.map((attachment, index) => (
+          <a
+            href={attachment.dataUrl || undefined}
+            target="_blank"
+            rel="noreferrer"
+            className="attachment-chip"
+            key={`${attachment.name}-${index}`}
+          >
+            {attachment.type?.startsWith("image/") ? "Image" : "File"}: {attachment.name}
+          </a>
+        ))}
+      </div>
+    </div>
   );
 }

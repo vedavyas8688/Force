@@ -14,6 +14,7 @@ const allowedOrigins = (process.env.CLIENT_ORIGINS || "")
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({
+  limit: process.env.JSON_BODY_LIMIT || "16mb",
   verify: (req, res, buf) => {
     if (req.originalUrl.startsWith("/api/webhooks/github")) {
       req.rawBody = buf;

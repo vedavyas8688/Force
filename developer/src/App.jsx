@@ -7,7 +7,6 @@ import Signup from "./pages/Signup";
 import AcceptInvite from "./pages/AcceptInvite";
 import Dashboard from "./pages/Dashboard";
 import Assigned from "./pages/Assigned";
-import Commits from "./pages/Commits";
 import Repositories from "./pages/Repositories";
 
 export default function App() {
@@ -28,7 +27,6 @@ export default function App() {
           >
             <Route path="/" element={<Dashboard />} />
             <Route path="/assigned" element={<Assigned />} />
-            <Route path="/commits" element={<Commits />} />
             <Route path="/repositories" element={<Repositories />} />
           </Route>
         </Routes>

@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import NotificationBell from "./NotificationBell";
 import { useAuth } from "../context/AuthContext";
 
 export default function Layout() {
@@ -14,7 +15,10 @@ export default function Layout() {
             <b>Developer Portal</b> / org:{" "}
             {user?.organizationId ? String(user.organizationId).slice(-8) : "—"}
           </div>
-          <div className="topbar-crumb">{user?.email}</div>
+          <div className="topbar-actions">
+            <NotificationBell />
+            <div className="topbar-crumb">{user?.email}</div>
+          </div>
         </header>
         <div className="content">
           <Outlet />

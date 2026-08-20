@@ -3,11 +3,14 @@ import { Project } from "../../models/project.model.js";
 import { Ticket } from "../../models/ticket.model.js";
 import { User } from "../../models/user.model.js";
 import { Organization } from "../../models/organization.model.js";
+import { analyzeTicket, analyzeTicketSafely } from "../ai/ai.service.js";
+import { notifyTicketEvent } from "../notifications/notification.service.js";
 
 const populateFields = [
   { path: "projectId", select: "name" },
   { path: "customerId", select: "name email" },
   { path: "assignedTo", select: "name email role" },
+  { path: "attachments.uploadedBy", select: "name email role" },
   { path: "comments.authorId", select: "name email role" },
   { path: "internalNotes.authorId", select: "name email role" },
   { path: "activity.actorId", select: "name email role" },
@@ -44,7 +47,7 @@ export async function getTicket({ organizationId, user, ticketId }) {
   return sanitizeTicketForRole(ticket, user.role);
 }
 
-export async function createTicket({ organizationId, customerId, projectId, title, description, priority, dueDate }) {
+export async function createTicket({ organizationId, customerId, projectId, title, description, priority, dueDate, attachments }) {
   const project = await Project.findOne({ _id: projectId, organizationId, status: "active" });
   if (!project) {
     const err = new Error("Project not found");
@@ -58,6 +61,7 @@ export async function createTicket({ organizationId, customerId, projectId, titl
     projectId,
     title,
     description,
+    attachments: normalizeAttachments({ attachments, uploadedBy: customerId }),
     priority: priority || "medium",
     dueDate: dueDate || null,
     activity: [
@@ -69,6 +73,15 @@ export async function createTicket({ organizationId, customerId, projectId, titl
       },
     ],
   });
+
+  await notifyTicketEvent({
+    organizationId,
+    ticketId: ticket._id,
+    actorId: customerId,
+    event: "ticket_created",
+  });
+
+  await analyzeTicketSafely({ organizationId, ticketId: ticket._id });
 
   const defaultStrategy = await getDefaultAssignmentStrategy(organizationId);
   if (defaultStrategy === "manual") {
@@ -136,6 +149,19 @@ export async function updateTicketStatus({ organizationId, user, ticketId, statu
     new: true,
     runValidators: true,
   }).populate(populateFields);
+
+  await notifyTicketEvent({
+    organizationId,
+    ticketId,
+    actorId: user.sub,
+    event:
+      status === "completed"
+        ? "ticket_completed"
+        : status === "closed"
+          ? "ticket_closed"
+          : "ticket_status_changed",
+    status,
+  });
 
   return sanitizeTicketForRole(ticket.toObject(), user.role);
 }
@@ -221,6 +247,13 @@ export async function addInternalNote({ organizationId, user, ticketId, body }) 
     },
     { new: true }
   ).populate(populateFields);
+
+  await notifyTicketEvent({
+    organizationId,
+    ticketId,
+    actorId: user.sub,
+    event: "ticket_reopen_requested",
+  });
 
   return sanitizeTicketForRole(ticket.toObject(), user.role);
 }
@@ -321,6 +354,13 @@ export async function reviewReopenRequest({ organizationId, user, ticketId, requ
 
   await ticket.save();
   const updatedTicket = await Ticket.findById(ticket._id).populate(populateFields);
+  await notifyTicketEvent({
+    organizationId,
+    ticketId,
+    actorId: user.sub,
+    event: approved ? "ticket_reopened" : "ticket_status_changed",
+    status: approved ? ticket.status : "closed",
+  });
   return sanitizeTicketForRole(updatedTicket.toObject(), user.role);
 }
 
@@ -359,7 +399,78 @@ export async function assignTicket({ organizationId, ticketId, developerId }) {
     throw err;
   }
 
+  await analyzeTicketSafely({ organizationId, ticketId: ticket._id });
+
+  await notifyTicketEvent({
+    organizationId,
+    ticketId: ticket._id,
+    actorId: null,
+    event: "ticket_assigned",
+    status: "assigned",
+  });
+
   return sanitizeTicketForRole(ticket.toObject(), "admin");
+}
+
+function normalizeAttachments({ attachments = [], uploadedBy }) {
+  const maxFiles = Number(process.env.TICKET_MAX_ATTACHMENTS || 4);
+  const maxBytes = Number(process.env.TICKET_MAX_ATTACHMENT_BYTES || 1_500_000);
+
+  if (!Array.isArray(attachments)) return [];
+
+  return attachments.slice(0, maxFiles).map((attachment) => {
+    const name = String(attachment?.name || "").trim();
+    const type = String(attachment?.type || "").trim();
+    const size = Number(attachment?.size || 0);
+    const dataUrl = String(attachment?.dataUrl || "");
+
+    if (!name) {
+      const err = new Error("Attachment name is required");
+      err.status = 400;
+      throw err;
+    }
+
+    if (size > maxBytes) {
+      const err = new Error(`Attachment ${name} is too large`);
+      err.status = 400;
+      throw err;
+    }
+
+    if (dataUrl && !dataUrl.startsWith("data:")) {
+      const err = new Error(`Attachment ${name} is invalid`);
+      err.status = 400;
+      throw err;
+    }
+
+    return {
+      name,
+      type,
+      size,
+      dataUrl,
+      description: String(attachment?.description || "").trim(),
+      uploadedBy,
+    };
+  });
+}
+
+export async function analyzeTicketForUser({ organizationId, user, ticketId }) {
+  if (!["admin", "developer"].includes(user.role)) {
+    const err = new Error("AI analysis is only available to admin and developers");
+    err.status = 403;
+    throw err;
+  }
+
+  const filter = buildTicketAccessFilter({ organizationId, user, ticketId });
+  const ticket = await Ticket.findOne(filter).select("_id");
+  if (!ticket) {
+    const err = new Error("Ticket not found");
+    err.status = 404;
+    throw err;
+  }
+
+  await analyzeTicket({ organizationId, ticketId });
+  const updatedTicket = await Ticket.findById(ticketId).populate(populateFields);
+  return sanitizeTicketForRole(updatedTicket.toObject(), user.role);
 }
 
 export async function autoAssignTicket({ organizationId, ticketId, strategy }) {

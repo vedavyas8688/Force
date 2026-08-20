@@ -69,6 +69,17 @@ export async function getGlobalTicketOverview() {
   };
 }
 
+export async function getGlobalTicket({ ticketId }) {
+  const ticket = await Ticket.findById(ticketId).populate(ticketPopulateFields).lean();
+  if (!ticket) {
+    const err = new Error("Ticket not found");
+    err.status = 404;
+    throw err;
+  }
+
+  return ticket;
+}
+
 export async function updateGlobalTicketStatus({ user, ticketId, status }) {
   const ticket = await findTicketForGlobalAdmin(ticketId);
   return ticketService.updateTicketStatus({

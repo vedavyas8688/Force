@@ -9,6 +9,18 @@ export async function globalTicketOverviewHandler(req, res, next) {
   }
 }
 
+export async function getGlobalTicketHandler(req, res, next) {
+  try {
+    const ticket = await adminTicketService.getGlobalTicket({
+      ticketId: req.params.id,
+    });
+
+    res.json({ ticket });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function updateGlobalTicketStatusHandler(req, res, next) {
   try {
     const { status } = req.body;

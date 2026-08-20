@@ -28,7 +28,7 @@ export async function getTicketHandler(req, res, next) {
 
 export async function createTicketHandler(req, res, next) {
   try {
-    const { projectId, title, description, priority, dueDate } = req.body;
+    const { projectId, title, description, priority, dueDate, attachments } = req.body;
 
     if (!projectId || !title || !description) {
       return res.status(400).json({ error: "Missing project, title, or description" });
@@ -42,9 +42,24 @@ export async function createTicketHandler(req, res, next) {
       description,
       priority,
       dueDate,
+      attachments,
     });
 
     res.status(201).json({ ticket });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function analyzeTicketHandler(req, res, next) {
+  try {
+    const ticket = await ticketService.analyzeTicketForUser({
+      organizationId: req.organizationId,
+      user: req.user,
+      ticketId: req.params.id,
+    });
+
+    res.json({ ticket });
   } catch (err) {
     next(err);
   }

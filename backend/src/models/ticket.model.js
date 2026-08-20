@@ -41,6 +41,17 @@ const ticketSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    attachments: [
+      {
+        name: { type: String, required: true, trim: true },
+        type: { type: String, default: "" },
+        size: { type: Number, default: 0 },
+        dataUrl: { type: String, default: "" },
+        description: { type: String, default: "" },
+        uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     status: {
       type: String,
       enum: [
@@ -131,9 +142,43 @@ const ticketSchema = new mongoose.Schema(
       },
     ],
     aiAnalysis: {
+      status: {
+        type: String,
+        enum: ["not_started", "pending", "completed", "failed", "skipped"],
+        default: "not_started",
+      },
       summary: { type: String, default: "" },
-      suspectedFiles: [{ type: String }],
+      title: { type: String, default: "" },
+      ticketLabel: { type: String, default: "" },
+      priorityLabel: { type: String, default: "" },
+      problem: { type: String, default: "" },
+      likelyRootCause: { type: String, default: "" },
+      developerBrief: { type: String, default: "" },
+      suspectedFiles: [
+        {
+          path: { type: String, default: "" },
+          reason: { type: String, default: "" },
+          lineStart: { type: Number, default: null },
+          lineEnd: { type: Number, default: null },
+        },
+      ],
+      sections: [
+        {
+          title: { type: String, default: "" },
+          body: { type: String, default: "" },
+          items: [{ type: String }],
+          code: { type: String, default: "" },
+          severity: { type: String, default: "" },
+        },
+      ],
+      investigationSteps: [{ type: String }],
+      suggestedFixes: [{ type: String }],
+      validationSteps: [{ type: String }],
       confidence: { type: Number, default: 0 },
+      provider: { type: String, default: "" },
+      model: { type: String, default: "" },
+      error: { type: String, default: "" },
+      analyzedAt: { type: Date, default: null },
     },
   },
   { timestamps: true }

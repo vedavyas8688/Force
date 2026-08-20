@@ -6,6 +6,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "worker:github": "node src/workers/github.worker.js",
+    "worker:notifications": "node src/workers/notification.worker.js",
     "seed:dev": "node scripts/seed-dev.js",
     "cleanup:demo-users": "node scripts/cleanup-demo-users.js",
     "promote:super-admin": "node scripts/promote-super-admin.js",

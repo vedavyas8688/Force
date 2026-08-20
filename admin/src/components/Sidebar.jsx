@@ -1,6 +1,7 @@
 import {
   BriefcaseBusiness,
   FolderKanban,
+  Activity,
   Plug,
   LayoutDashboard,
   LifeBuoy,
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { to: "/assignments", label: "Assignments", icon: BriefcaseBusiness, scope: "organization" },
   { to: "/projects", label: "Projects", icon: FolderKanban, scope: "organization" },
   { to: "/integrations", label: "Integrations", icon: Plug, scope: "organization" },
+  { to: "/activity-logs", label: "Activity Logs", icon: Activity, scope: "organization" },
 ];
 
 export default function Sidebar() {
