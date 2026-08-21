@@ -1,4 +1,9 @@
-export const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+function normalizeApiBase(url) {
+  const base = String(url || "http://localhost:5000/api").replace(/\/+$/, "");
+  return base.endsWith("/api") ? base : `${base}/api`;
+}
+
+export const API_BASE = normalizeApiBase(import.meta.env.VITE_API_BASE_URL);
 
 function getTokens() {
   return {

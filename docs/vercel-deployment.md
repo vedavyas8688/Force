@@ -26,11 +26,11 @@ The backend serverless function is configured in `backend/vercel.json` with a 60
 Required production URL shape:
 
 ```env
-API_PUBLIC_URL=https://your-backend.vercel.app
-ADMIN_URL=https://your-admin.vercel.app
-CUSTOMER_URL=https://your-customer.vercel.app
-DEVELOPER_URL=https://your-developer.vercel.app
-CLIENT_ORIGINS=https://your-admin.vercel.app,https://your-customer.vercel.app,https://your-developer.vercel.app,https://your-super-admin.vercel.app
+API_PUBLIC_URL=https://forceinfinity-ten.vercel.app
+ADMIN_URL=https://force-admin-rosy.vercel.app
+CUSTOMER_URL=https://force-customer.vercel.app
+DEVELOPER_URL=https://force-tau.vercel.app
+CLIENT_ORIGINS=https://force-admin-rosy.vercel.app,https://force-customer.vercel.app,https://force-tau.vercel.app,https://force-super-admin.vercel.app
 ```
 
 ## Frontends
@@ -40,7 +40,7 @@ Deploy each frontend as a separate Vercel project with its folder as the root di
 Set this env var in all four frontend projects:
 
 ```env
-VITE_API_BASE_URL=https://your-backend.vercel.app/api
+VITE_API_BASE_URL=https://forceinfinity-ten.vercel.app/api
 ```
 
 Local VS Code still works because every frontend falls back to:
