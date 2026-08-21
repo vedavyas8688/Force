@@ -41,6 +41,14 @@ export function createApp() {
       apiBase: "/api",
     });
   });
+  app.get("/api/index", (req, res) => {
+    res.json({
+      status: "ok",
+      service: "FORCE backend API",
+      health: "/health",
+      apiBase: "/api",
+    });
+  });
 
   app.get("/health", (req, res) => res.json({ status: "ok" }));
 
