@@ -4,7 +4,7 @@ export function getGeminiConfig() {
   return {
     provider: "gemini",
     apiKey: process.env.GEMINI_API_KEY || "",
-    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
     timeoutMs: Number(process.env.AI_TIMEOUT_MS || 45000),
     externalCallsEnabled: process.env.AI_EXTERNAL_CALLS_ENABLED === "true",
   };
