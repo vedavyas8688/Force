@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
 
+let connectionPromise = null;
+let listenersAttached = false;
+
 export async function connectDatabase() {
   const uri = process.env.MONGO_URI;
 
@@ -7,13 +10,24 @@ export async function connectDatabase() {
     throw new Error("MONGO_URI is not set in environment variables");
   }
 
-  mongoose.connection.on("connected", () => {
-    console.log("[db] MongoDB connected");
-  });
+  if (mongoose.connection.readyState === 1) return mongoose.connection;
 
-  mongoose.connection.on("error", (err) => {
-    console.error("[db] MongoDB connection error:", err.message);
-  });
+  if (!listenersAttached) {
+    mongoose.connection.on("connected", () => {
+      console.log("[db] MongoDB connected");
+    });
 
-  await mongoose.connect(uri);
+    mongoose.connection.on("error", (err) => {
+      console.error("[db] MongoDB connection error:", err.message);
+    });
+
+    listenersAttached = true;
+  }
+
+  connectionPromise ||= mongoose.connect(uri).catch((err) => {
+    connectionPromise = null;
+    throw err;
+  });
+  await connectionPromise;
+  return mongoose.connection;
 }
