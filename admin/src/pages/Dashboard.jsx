@@ -53,7 +53,7 @@ export default function Dashboard() {
                     <h3>{ticket.title}</h3>
                     <p>{ticket.projectId?.name || "No project"} - {ticket.customerId?.email || "No customer"}</p>
                   </div>
-                  <span className="status-pill">{ticket.status}</span>
+                  <span className="status-pill">{formatStatus(ticket.status)}</span>
                 </div>
                 <div className="ticket-meta">
                   <span>{ticket.priority}</span>
@@ -66,4 +66,8 @@ export default function Dashboard() {
       </div>
     </>
   );
+}
+
+function formatStatus(status = "") {
+  return status.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

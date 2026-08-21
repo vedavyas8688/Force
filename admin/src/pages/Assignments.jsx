@@ -17,6 +17,7 @@ export default function Assignments() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busyTicketId, setBusyTicketId] = useState("");
+  const [reviewBusyId, setReviewBusyId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [selectedDevelopers, setSelectedDevelopers] = useState({});
 
@@ -25,7 +26,16 @@ export default function Assignments() {
     [users]
   );
   const assignableTickets = useMemo(
-    () => tickets.filter((ticket) => !["completed", "resolved", "closed"].includes(ticket.status)),
+    () => tickets.filter((ticket) => ["open", "triaged", "assigned", "in_progress"].includes(ticket.status)),
+    [tickets]
+  );
+  const pendingReopenTickets = useMemo(
+    () => tickets
+      .map((ticket) => ({
+        ticket,
+        request: (ticket.reopenRequests || []).find((request) => request.status === "pending"),
+      }))
+      .filter((item) => item.request),
     [tickets]
   );
   const unassignedCount = assignableTickets.filter((ticket) => !ticket.assignedTo).length;
@@ -119,6 +129,21 @@ export default function Assignments() {
     }
   }
 
+  async function reviewReopen(ticketId, requestId, decision) {
+    setReviewBusyId(requestId);
+    setError("");
+    setNotice("");
+    try {
+      await ticketsApi.reviewReopenRequest(ticketId, requestId, decision);
+      setNotice(decision === "approved" ? "Reopen request approved" : "Reopen request rejected");
+      await loadData();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setReviewBusyId("");
+    }
+  }
+
   return (
     <>
       <h1 className="page-title">Assignments</h1>
@@ -141,6 +166,45 @@ export default function Assignments() {
 
         {notice && <div className="form-success table-notice"><span>{notice}</span></div>}
         {error && <div className="form-error table-notice">{error}</div>}
+
+        {pendingReopenTickets.length > 0 && (
+          <section className="assignment-reopen-panel">
+            <div>
+              <h2>Reopen Requests</h2>
+              <p>Review customer requests before a closed ticket becomes active again.</p>
+            </div>
+            <DataTablePanel>
+              <DataTable className="assignment-reopen-table" columns={["Ticket", "Customer", "Reason", "Current Developer", "Action"]}>
+                {pendingReopenTickets.map(({ ticket, request }) => (
+                  <div className="data-grid-row assignment-reopen-row" key={request._id}>
+                    <strong>{ticket.title}</strong>
+                    <span>{ticket.customerId?.email || "-"}</span>
+                    <span>{request.reason}</span>
+                    <span>{ticket.assignedTo?.email || "Unassigned"}</span>
+                    <div className="row-actions">
+                      <button
+                        className="btn-secondary inline-button"
+                        type="button"
+                        disabled={reviewBusyId === request._id}
+                        onClick={() => reviewReopen(ticket._id, request._id, "rejected")}
+                      >
+                        Reject
+                      </button>
+                      <button
+                        className="btn-primary inline-button"
+                        type="button"
+                        disabled={reviewBusyId === request._id}
+                        onClick={() => reviewReopen(ticket._id, request._id, "approved")}
+                      >
+                        Approve
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </DataTable>
+            </DataTablePanel>
+          </section>
+        )}
 
         <DataTablePanel>
           <DataTable className="assignments-table" columns={["Ticket", "Status", "Current Developer", "Manual Assignment"]}>

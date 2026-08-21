@@ -2,7 +2,7 @@ import { Project } from "../../models/project.model.js";
 import { Ticket } from "../../models/ticket.model.js";
 import { User } from "../../models/user.model.js";
 
-const activeTicketStatuses = ["open", "triaged", "assigned", "in_progress"];
+const activeTicketStatuses = ["open", "triaged", "assigned", "in_progress", "pending_customer"];
 const completedTicketStatuses = ["completed", "resolved"];
 
 export async function getDashboardSummary({ organizationId, user }) {
@@ -57,7 +57,7 @@ async function getAdminSummary(organizationId) {
       activeDevelopers,
       activeCustomers,
     },
-    recentTickets,
+    recentTickets: recentTickets.map(normalizeLegacyTicketStatus),
   };
 }
 
@@ -93,7 +93,7 @@ async function getCustomerSummary({ organizationId, customerId }) {
       resolvedTickets,
       activeProjects,
     },
-    recentTickets,
+    recentTickets: recentTickets.map(normalizeLegacyTicketStatus),
   };
 }
 
@@ -101,7 +101,7 @@ async function getDeveloperSummary({ organizationId, developerId }) {
   const [assignedTickets, inProgressTickets, resolvedTickets, closedTickets] =
     await Promise.all([
       Ticket.countDocuments({ organizationId, assignedTo: developerId }),
-      Ticket.countDocuments({ organizationId, assignedTo: developerId, status: "in_progress" }),
+      Ticket.countDocuments({ organizationId, assignedTo: developerId, status: { $in: ["in_progress", "pending_customer"] } }),
       Ticket.countDocuments({ organizationId, assignedTo: developerId, status: { $in: completedTicketStatuses } }),
       Ticket.countDocuments({ organizationId, assignedTo: developerId, status: "closed" }),
     ]);
@@ -122,6 +122,15 @@ async function getDeveloperSummary({ organizationId, developerId }) {
       resolvedTickets,
       closedTickets,
     },
-    recentTickets,
+    recentTickets: recentTickets.map(normalizeLegacyTicketStatus),
+  };
+}
+
+function normalizeLegacyTicketStatus(ticket) {
+  if (!ticket) return ticket;
+
+  return {
+    ...ticket,
+    status: ticket.status === "pending_customer" ? "in_progress" : ticket.status,
   };
 }

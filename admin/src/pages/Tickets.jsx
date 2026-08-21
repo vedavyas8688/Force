@@ -299,7 +299,7 @@ export default function Tickets() {
             <div>
               <span>Organizations &gt; {selectedOrg.organization.name}</span>
               <h2>{selectedOrg.organization.name}</h2>
-              <p>Created {selectedOrg.organization.createdAt ? new Date(selectedOrg.organization.createdAt).toLocaleDateString() : "-"}</p>
+              <p>{organizationDescription(selectedOrg.organization)}</p>
             </div>
             <div className="workspace-counts">
               <span>{selectedOrg.userCounts.customers} customers</span>
@@ -557,6 +557,14 @@ function topOpenOrganizations(organizations) {
 
 function orgCode(id) {
   return `ORG-${String(id).slice(-3).toUpperCase()}`;
+}
+
+function organizationDescription(organization = {}) {
+  if (organization.createdAt) {
+    return `Created ${new Date(organization.createdAt).toLocaleDateString()}`;
+  }
+
+  return "Ticket workspace";
 }
 
 function titleCase(value = "") {

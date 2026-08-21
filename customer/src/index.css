@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800;900&display=swap");
+
 /* ---------------------------------------------------------
    Shared design tokens. Each portal (customer) sets its own
    --accent so the three apps share one system but stay visually
@@ -18,8 +20,8 @@
   --accent-ink: #ffffff;
   --danger: #c0392b;
   --radius: 8px;
-  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  --sans: "Roboto", Arial, sans-serif;
+  --mono: "Roboto", Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -38,7 +40,7 @@ body {
 
 a { color: inherit; }
 
-button, input {
+button, input, select, textarea {
   font-family: inherit;
   font-size: inherit;
 }
@@ -1090,6 +1092,17 @@ button, input {
   border-color: #b8c7d9;
   color: var(--accent);
   background: #fff;
+}
+
+.attachment-chip.disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.attachment-chip.disabled:hover {
+  border-color: var(--border);
+  color: var(--ink-muted);
+  background: #f8fafc;
 }
 
 @media (max-width: 700px) {

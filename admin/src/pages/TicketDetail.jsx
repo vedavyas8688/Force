@@ -11,6 +11,8 @@ export default function TicketDetail() {
   const [previewAttachment, setPreviewAttachment] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [reviewNotes, setReviewNotes] = useState({});
 
   const ticketApi = user?.role === "super_admin" ? adminTicketsApi : ticketsApi;
 
@@ -20,6 +22,7 @@ export default function TicketDetail() {
 
   async function loadTicket() {
     setError("");
+    setSuccess("");
     try {
       const data = await ticketApi.get(id);
       setTicket(data.ticket);
@@ -31,14 +34,25 @@ export default function TicketDetail() {
   async function runAction(action) {
     setBusy(true);
     setError("");
+    setSuccess("");
     try {
       const data = await action();
       setTicket(data.ticket);
+      return data;
     } catch (err) {
       setError(err.message);
+      return null;
     } finally {
       setBusy(false);
     }
+  }
+
+  async function reviewReopenRequest(requestId, decision) {
+    const adminNote = reviewNotes[requestId] || "";
+    const data = await runAction(() => ticketApi.reviewReopenRequest(ticket._id, requestId, decision, adminNote));
+    if (!data) return;
+    setReviewNotes((current) => ({ ...current, [requestId]: "" }));
+    setSuccess(decision === "approved" ? "Reopen request approved. Ticket is active again." : "Reopen request rejected. Ticket remains closed.");
   }
 
   async function analyzeTicket() {
@@ -58,6 +72,7 @@ export default function TicketDetail() {
     <section className="ticket-page">
       <Link className="back-button icon-text-button" to="/tickets"><ArrowLeft size={16} /> Back to tickets</Link>
       {error && <div className="form-error table-notice">{error}</div>}
+      {success && <div className="form-success table-notice"><span>{success}</span></div>}
 
       <article className="ticket-detail-card ticket-detail-page-card">
         <div className="ticket-card-header">
@@ -78,6 +93,18 @@ export default function TicketDetail() {
         </div>
 
         <AttachmentList attachments={ticket.attachments} onPreview={setPreviewAttachment} />
+
+        {user?.role === "admin" && (
+          <ReopenReviewPanel
+            ticket={ticket}
+            busy={busy}
+            reviewNotes={reviewNotes}
+            onNoteChange={(requestId, value) =>
+              setReviewNotes((current) => ({ ...current, [requestId]: value }))
+            }
+            onReview={reviewReopenRequest}
+          />
+        )}
 
         <div className="ticket-action-strip">
           <button className="btn-secondary inline-button icon-text-button" type="button" disabled={busy} onClick={analyzeTicket}>
@@ -104,6 +131,56 @@ export default function TicketDetail() {
           </div>
         </div>
       )}
+    </section>
+  );
+}
+
+function ReopenReviewPanel({ ticket, busy, reviewNotes, onNoteChange, onReview }) {
+  const requests = ticket.reopenRequests || [];
+  if (!requests.length) return null;
+
+  return (
+    <section className="detail-section reopen-review-panel">
+      <div className="section-heading-row">
+        <h4>Reopen Review</h4>
+        <span>{requests.filter((request) => request.status === "pending").length} pending</span>
+      </div>
+      <div className="reopen-review-list">
+        {requests.map((request) => {
+          const isPending = request.status === "pending";
+          const requestId = request._id || request.id;
+
+          return (
+            <article className={`reopen-review-item ${request.status}`} key={requestId || request.createdAt}>
+              <div className="reopen-review-copy">
+                <strong>{request.requestedBy?.email || "Customer"}</strong>
+                <p>{request.reason}</p>
+                <small>
+                  {request.createdAt ? new Date(request.createdAt).toLocaleString() : ""}
+                  {request.reviewedBy?.email ? ` / reviewed by ${request.reviewedBy.email}` : ""}
+                </small>
+              </div>
+              <span className={`status-pill reopen-${request.status}`}>{formatStatus(request.status)}</span>
+              {request.adminNote && <p className="review-note">Admin note: {request.adminNote}</p>}
+              {isPending && (
+                <div className="reopen-review-actions">
+                  <input
+                    value={reviewNotes[requestId] || ""}
+                    onChange={(event) => onNoteChange(requestId, event.target.value)}
+                    placeholder="Optional admin note"
+                  />
+                  <button className="btn-secondary inline-button" type="button" disabled={busy} onClick={() => onReview(requestId, "rejected")}>
+                    Reject
+                  </button>
+                  <button className="btn-primary inline-button" type="button" disabled={busy} onClick={() => onReview(requestId, "approved")}>
+                    Approve
+                  </button>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }

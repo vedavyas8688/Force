@@ -3,9 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import { ticketsApi } from "../api/client";
 
 const statusActions = [
-  { status: "in_progress", label: "Start work", icon: "play" },
-  { status: "completed", label: "Mark completed", icon: "check" },
-  { status: "closed", label: "Close ticket", icon: "lock" },
+  { status: "in_progress", label: "Start work", icon: "play", from: ["assigned"] },
+  { status: "completed", label: "Mark completed", icon: "check", from: ["assigned", "in_progress"] },
+  { status: "closed", label: "Close ticket", icon: "lock", from: ["completed", "resolved"] },
 ];
 
 export default function TicketDetail() {
@@ -14,6 +14,7 @@ export default function TicketDetail() {
   const [previewAttachment, setPreviewAttachment] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     loadTicket();
@@ -21,6 +22,7 @@ export default function TicketDetail() {
 
   async function loadTicket() {
     setError("");
+    setSuccess("");
     try {
       const data = await ticketsApi.get(id);
       setTicket(data.ticket);
@@ -32,9 +34,17 @@ export default function TicketDetail() {
   async function runAction(action) {
     setBusy(true);
     setError("");
+    setSuccess("");
     try {
       const data = await action();
       setTicket(data.ticket);
+      if (data.ticket?.status === "closed") {
+        setSuccess("Ticket closed. It is now locked and visible in the Closed tab.");
+      } else if (data.ticket?.status === "completed") {
+        setSuccess("Ticket marked completed. You can close it now.");
+      } else {
+        setSuccess("Ticket status updated.");
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -57,6 +67,7 @@ export default function TicketDetail() {
     <section className="ticket-page">
       <Link className="back-button" to="/assigned"><Icon name="arrowLeft" /> Back to tickets</Link>
       {error && <div className="form-error table-notice">{error}</div>}
+      {success && <div className="form-success table-notice"><span>{success}</span></div>}
 
       <article className="ticket-detail-card">
         <div className="ticket-card-header">
@@ -79,20 +90,16 @@ export default function TicketDetail() {
 
         {!isClosed && (
           <div className="ticket-action-strip">
-            {statusActions.map((action) => {
+            {statusActions.filter((action) => action.from.includes(ticket.status)).map((action) => {
               return (
                 <button
-                  className="btn-secondary inline-button"
+                  className={action.status === "closed" ? "btn-primary inline-button" : "btn-secondary inline-button"}
                   type="button"
                   key={action.status}
-                  disabled={
-                    busy ||
-                    ticket.status === action.status ||
-                    (action.status === "closed" && !["completed", "resolved"].includes(ticket.status))
-                  }
+                  disabled={busy}
                   onClick={() => runAction(() => ticketsApi.updateStatus(ticket._id, action.status))}
                 >
-                  <Icon name={action.icon} /> {action.label}
+                  <Icon name={action.icon} /> {busy ? "Updating..." : action.label}
                 </button>
               );
             })}

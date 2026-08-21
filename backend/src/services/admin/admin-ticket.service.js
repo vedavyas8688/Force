@@ -37,7 +37,8 @@ export async function getGlobalTicketOverview() {
       .lean(),
   ]);
 
-  const ticketsByOrganization = groupByOrganization(tickets);
+  const normalizedTickets = tickets.map(normalizeLegacyTicketStatus);
+  const ticketsByOrganization = groupByOrganization(normalizedTickets);
   const usersByOrganization = groupByOrganization(users);
 
   const organizationCards = organizations.map((organization) => {
@@ -63,7 +64,7 @@ export async function getGlobalTicketOverview() {
   });
 
   return {
-    summary: buildCounts(tickets),
+    summary: buildCounts(normalizedTickets),
     organizations: organizationCards,
   };
 }
@@ -76,7 +77,7 @@ export async function getGlobalTicket({ ticketId }) {
     throw err;
   }
 
-  return ticket;
+  return normalizeLegacyTicketStatus(ticket);
 }
 
 export async function updateGlobalTicketStatus({ user, ticketId, status }) {
@@ -165,4 +166,22 @@ function buildCounts(tickets) {
   }
 
   return counts;
+}
+
+function normalizeStatusValue(status) {
+  return status === "pending_customer" ? "in_progress" : status;
+}
+
+function normalizeLegacyTicketStatus(ticket) {
+  if (!ticket) return ticket;
+
+  return {
+    ...ticket,
+    status: normalizeStatusValue(ticket.status),
+    activity: (ticket.activity || []).map((item) => ({
+      ...item,
+      fromStatus: normalizeStatusValue(item.fromStatus),
+      toStatus: normalizeStatusValue(item.toStatus),
+    })),
+  };
 }

@@ -1,4 +1,5 @@
 @import "./theme.css";
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800;900&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -10,8 +11,8 @@
    distinct at a glance.
 --------------------------------------------------------- */
 :root {
-  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  --sans: "Roboto", Arial, sans-serif;
+  --mono: "Roboto", Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -30,7 +31,7 @@ body {
 
 a { color: inherit; }
 
-button, input {
+button, input, select, textarea {
   font-family: inherit;
   font-size: inherit;
 }
@@ -772,6 +773,25 @@ button, input {
   flex: 1;
 }
 
+.assignment-reopen-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.assignment-reopen-panel h2,
+.assignment-reopen-panel p {
+  margin: 0;
+}
+
+.assignment-reopen-panel h2 {
+  font-size: 18px;
+}
+
+.assignment-reopen-panel p {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
 @media (max-width: 700px) {
   .assignment-toolbar {
     display: grid;
@@ -980,6 +1000,99 @@ button, input {
 
 .reopen-review-list .comment-form {
   grid-template-columns: minmax(180px, 1fr) auto auto;
+}
+
+.section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-heading-row h4 {
+  margin: 0;
+}
+
+.section-heading-row span {
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.reopen-review-panel {
+  border-color: #fed7aa;
+  background: linear-gradient(180deg, #fffaf3, #fff);
+}
+
+.reopen-review-list {
+  display: grid;
+  gap: 12px;
+}
+
+.reopen-review-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.reopen-review-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.reopen-review-copy p,
+.review-note {
+  margin: 0;
+  color: var(--ink-muted);
+  line-height: 1.45;
+}
+
+.reopen-review-copy small {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.review-note {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 13px;
+}
+
+.reopen-review-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  gap: 10px;
+}
+
+.reopen-review-actions input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.status-pill.reopen-pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-pill.reopen-approved {
+  background: #ecfdf3;
+  color: #087443;
+}
+
+.status-pill.reopen-rejected {
+  background: #fdecea;
+  color: var(--danger);
 }
 
 .activity-list {
@@ -2411,6 +2524,24 @@ button, input {
 
 .assignments-table .data-grid-row {
   grid-template-columns: minmax(220px, 1.2fr) 130px minmax(220px, 1fr) minmax(280px, 1.3fr);
+}
+
+.assignment-reopen-table .data-grid-row {
+  grid-template-columns: minmax(190px, 1fr) minmax(210px, 1fr) minmax(260px, 1.4fr) minmax(210px, 1fr) minmax(170px, 0.65fr);
+}
+
+.assignment-reopen-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assignment-reopen-row .row-actions {
+  display: inline-flex;
+  gap: 8px;
+  justify-content: flex-end;
+  width: auto;
 }
 
 .data-grid-row > strong {

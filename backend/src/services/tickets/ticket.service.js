@@ -31,7 +31,7 @@ export async function listTickets({ organizationId, user }) {
   }
 
   const tickets = await Ticket.find(filter).sort({ createdAt: -1 }).populate(populateFields).lean();
-  return tickets.map((ticket) => sanitizeTicketListItem(sanitizeTicketForRole(ticket, user.role)));
+  return tickets.map((ticket) => sanitizeTicketListItem(sanitizeTicketForRole(ticket, user.role), user.role));
 }
 
 export async function getTicket({ organizationId, user, ticketId }) {
@@ -114,9 +114,11 @@ export async function updateTicketStatus({ organizationId, user, ticketId, statu
     throw err;
   }
 
-  assertStatusAllowedForRole({ role: user.role, fromStatus: existing.status, status });
+  const fromStatus = normalizeStatusValue(existing.status);
 
-  if (existing.status === "closed" && status !== "closed") {
+  assertStatusAllowedForRole({ role: user.role, fromStatus, status });
+
+  if (fromStatus === "closed" && status !== "closed") {
     const err = new Error("Closed tickets require an approved reopen request");
     err.status = 403;
     throw err;
@@ -129,8 +131,8 @@ export async function updateTicketStatus({ organizationId, user, ticketId, statu
       activity: {
         actorId: user.sub,
         action: status === "completed" ? "completed" : status === "closed" ? "closed" : "status_changed",
-        message: `Status changed from ${existing.status} to ${status}`,
-        fromStatus: existing.status,
+        message: `Status changed from ${fromStatus} to ${status}`,
+        fromStatus,
         toStatus: status,
       },
     },
@@ -358,7 +360,7 @@ export async function reviewReopenRequest({ organizationId, user, ticketId, requ
     organizationId,
     ticketId,
     actorId: user.sub,
-    event: approved ? "ticket_reopened" : "ticket_status_changed",
+    event: approved ? "ticket_reopened" : "ticket_reopen_rejected",
     status: approved ? ticket.status : "closed",
   });
   return sanitizeTicketForRole(updatedTicket.toObject(), user.role);
@@ -612,6 +614,7 @@ function buildTicketAccessFilter({ organizationId, user, ticketId }) {
 }
 
 function assertStatusAllowedForRole({ role, fromStatus, status }) {
+  const normalizedFromStatus = normalizeStatusValue(fromStatus);
   const allowedByRole = {
     admin: ["open", "assigned", "in_progress", "completed", "closed"],
     developer: ["in_progress", "completed", "closed"],
@@ -626,13 +629,13 @@ function assertStatusAllowedForRole({ role, fromStatus, status }) {
 
   const completedStatuses = ["completed", "resolved"];
 
-  if (role === "customer" && !(completedStatuses.includes(fromStatus) && status === "closed")) {
+  if (role === "customer" && !(completedStatuses.includes(normalizedFromStatus) && status === "closed")) {
     const err = new Error("Customer can only close completed tickets");
     err.status = 403;
     throw err;
   }
 
-  if (role === "developer" && status === "closed" && !completedStatuses.includes(fromStatus)) {
+  if (role === "developer" && status === "closed" && !completedStatuses.includes(normalizedFromStatus)) {
     const err = new Error("Developer can only close completed tickets");
     err.status = 403;
     throw err;
@@ -640,23 +643,45 @@ function assertStatusAllowedForRole({ role, fromStatus, status }) {
 }
 
 function sanitizeTicketForRole(ticket, role) {
+  const normalizedTicket = normalizeLegacyTicketStatus(ticket);
+
   if (role !== "customer") {
-    return ticket;
+    return normalizedTicket;
   }
 
   return {
-    ...ticket,
+    ...normalizedTicket,
     internalNotes: undefined,
-    activity: (ticket.activity || []).filter((item) => item.action !== "internal_note_added"),
+    activity: (normalizedTicket.activity || []).filter((item) => item.action !== "internal_note_added"),
   };
 }
 
-function sanitizeTicketListItem(ticket) {
+function normalizeStatusValue(status) {
+  return status === "pending_customer" ? "in_progress" : status;
+}
+
+function normalizeLegacyTicketStatus(ticket) {
+  if (!ticket) return ticket;
+
+  return {
+    ...ticket,
+    status: normalizeStatusValue(ticket.status),
+    activity: (ticket.activity || []).map((item) => ({
+      ...item,
+      fromStatus: normalizeStatusValue(item.fromStatus),
+      toStatus: normalizeStatusValue(item.toStatus),
+    })),
+  };
+}
+
+function sanitizeTicketListItem(ticket, role) {
+  const canOpenEvidence = ["admin", "customer", "developer"].includes(role);
+
   return {
     ...ticket,
     attachments: (ticket.attachments || []).map((attachment) => ({
       ...attachment,
-      dataUrl: undefined,
+      dataUrl: canOpenEvidence ? attachment.dataUrl : undefined,
     })),
   };
 }

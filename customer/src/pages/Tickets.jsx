@@ -24,8 +24,11 @@ export default function Tickets() {
 
   const filteredTickets = useMemo(() => {
     const tab = tabs.find((item) => item.key === activeTab);
-    if (!tab?.statuses) return tickets;
-    return tickets.filter((ticket) => tab.statuses.includes(ticket.status));
+    const sortedTickets = [...tickets].sort(
+      (a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0)
+    );
+    if (!tab?.statuses) return sortedTickets;
+    return sortedTickets.filter((ticket) => tab.statuses.includes(ticket.status));
   }, [activeTab, tickets]);
 
   function countForTab(tab) {
@@ -34,6 +37,8 @@ export default function Tickets() {
   }
 
   async function loadTickets() {
+    setError("");
+    setSuccess("");
     try {
       const data = await ticketsApi.list();
       setTickets(data.tickets || []);
@@ -50,6 +55,7 @@ export default function Tickets() {
       setTickets((current) =>
         current.map((ticket) => (ticket._id === ticketId ? data.ticket : ticket))
       );
+      setSuccess(status === "closed" ? "Ticket closed." : "Ticket updated.");
       setActiveTab(status === "closed" ? "closed" : "open");
     } catch (err) {
       setError(err.message);
@@ -121,17 +127,17 @@ export default function Tickets() {
                       <h3>{ticket.title}</h3>
                       <p>{ticket.description}</p>
                     </div>
-                    <span className="status-pill">{ticket.status}</span>
+                    <span className="status-pill">{formatStatus(ticket.status)}</span>
                   </div>
                   <div className="ticket-meta">
                     <span>Project: {ticket.projectId?.name || "-"}</span>
                     <span>Developer: {ticket.assignedTo?.email || "Unassigned"}</span>
-                    <span>Priority: {ticket.priority}</span>
-                    <span>Due: {ticket.dueDate ? new Date(ticket.dueDate).toLocaleDateString() : "-"}</span>
-                    <span>Created: {ticket.createdAt ? new Date(ticket.createdAt).toLocaleString() : "-"}</span>
-                    <span>Updated: {ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleString() : "-"}</span>
-                    {ticket.completedAt && <span>Completed: {new Date(ticket.completedAt).toLocaleString()}</span>}
-                    {ticket.closedAt && <span>Closed: {new Date(ticket.closedAt).toLocaleString()}</span>}
+                    <span>Priority: {formatStatus(ticket.priority)}</span>
+                    <span>Due: {formatDate(ticket.dueDate)}</span>
+                    <span>Created: {formatDateTime(ticket.createdAt)}</span>
+                    <span>Updated: {formatDateTime(ticket.updatedAt)}</span>
+                    {ticket.completedAt && <span>Completed: {formatDateTime(ticket.completedAt)}</span>}
+                    {ticket.closedAt && <span>Closed: {formatDateTime(ticket.closedAt)}</span>}
                   </div>
                   <AttachmentList attachments={ticket.attachments} />
                   {(["completed", "resolved"].includes(ticket.status) || isClosed) && (
@@ -143,7 +149,7 @@ export default function Tickets() {
                           disabled={busyTicketId === ticket._id}
                           onClick={() => updateStatus(ticket._id, "closed")}
                         >
-                          Close ticket
+                          {busyTicketId === ticket._id ? "Closing..." : "Close ticket"}
                         </button>
                       )}
                     </div>
@@ -168,7 +174,7 @@ export default function Tickets() {
                           disabled={busyTicketId === ticket._id}
                           onClick={() => requestReopen(ticket._id)}
                         >
-                          Request reopen
+                          {busyTicketId === ticket._id ? "Sending..." : "Request reopen"}
                         </button>
                       </div>
                     </div>
@@ -209,8 +215,12 @@ function AttachmentList({ attachments = [] }) {
             href={attachment.dataUrl || undefined}
             target="_blank"
             rel="noreferrer"
-            className="attachment-chip"
+            className={attachment.dataUrl ? "attachment-chip" : "attachment-chip disabled"}
             key={`${attachment.name}-${index}`}
+            aria-disabled={!attachment.dataUrl}
+            onClick={(event) => {
+              if (!attachment.dataUrl) event.preventDefault();
+            }}
           >
             {attachment.type?.startsWith("image/") ? "Image" : "File"}: {attachment.name}
           </a>
@@ -218,4 +228,16 @@ function AttachmentList({ attachments = [] }) {
       </div>
     </div>
   );
+}
+
+function formatStatus(value = "") {
+  return String(value || "-").replaceAll("_", " ");
+}
+
+function formatDate(value) {
+  return value ? new Date(value).toLocaleDateString() : "-";
+}
+
+function formatDateTime(value) {
+  return value ? new Date(value).toLocaleString() : "-";
 }
