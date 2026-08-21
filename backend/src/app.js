@@ -13,6 +13,14 @@ const DEFAULT_CLIENT_ORIGINS = [
   "http://localhost:5174",
   "http://localhost:5175",
   "http://localhost:5176",
+  "http://127.0.0.1:3001",
+  "http://127.0.0.1:3002",
+  "http://127.0.0.1:3003",
+  "http://127.0.0.1:3004",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5175",
+  "http://127.0.0.1:5176",
 ];
 
 export function createApp() {
